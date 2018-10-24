@@ -7,6 +7,10 @@
 #include "Grid.h"
 #include "InitialCondition.h"
 
+#ifndef NDEBUG
+long long libxsmm_num_total_flops;
+#endif
+
 void initScenario0(GlobalConstants& globals, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid)
 {    
   for (int y = 0; y < globals.Y; ++y) {

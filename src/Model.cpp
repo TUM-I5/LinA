@@ -6,8 +6,8 @@
 void computeA(Material const& material, double A[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES])
 {
   memset(A, 0, NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES*sizeof(double));
-  A[0 * NUMBER_OF_QUANTITIES + 1] = material.K0;
-  A[1 * NUMBER_OF_QUANTITIES + 0] = 1.0 / material.rho0;
+  A[0 * 2 + 1] = material.K0;
+  A[1 * 2 + 0] = 1.0 / material.rho0;
 }
 
 void computeB(Material const& material, double B[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES])

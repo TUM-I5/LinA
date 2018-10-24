@@ -1,10 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import numpy
 import math
 
-matrixFiles = os.listdir('matrices')
 maxDegree = 12
 with open('basisfunctions.h', 'w') as out:
   with open('basisfunctions.c', 'r') as bf:
@@ -16,11 +15,11 @@ with open('basisfunctions.h', 'w') as out:
     names = list()
     for line in bf:
       name = 'basisFunction' + str(nbf)
-      out.write('static double {}(double xi, double eta) {{\n'.format(name))
+      out.write('static double {}(double xi) {{\n'.format(name))
       out.write('  double ' + line)
       out.write('  return phi;\n')
       out.write('}\n')
       nbf = nbf + 1
       names.append(name)
-    out.write('static double (* const basisFunctions[])(double, double) = {{ {} }};\n'.format(','.join(names)))
+    out.write('static double (* const basisFunctions[])(double) = {{ {} }};\n'.format(','.join(names)))
     out.write('#endif // BASISFUNCTIONS_H_\n')

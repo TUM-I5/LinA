@@ -1,6 +1,7 @@
 import os
 import sys
 import commands
+import arch
 
 vars = Variables()
 vars.AddVariables(
@@ -17,6 +18,11 @@ vars.AddVariables(
                 'Select the compiler (default: intel)',
                 'intel',
                 allowed_values=('intel', 'gcc')),
+  EnumVariable( 'arch',
+                'precision -- s for single- and d for double precision -- and architecture used. Warning: \'noarch\' calls the fall-back code and is outperformed by architecture-specific optimizations (if available) greatly.',
+                'dnoarch',
+                allowed_values=arch.getArchitectures()
+              ),
 )
 
 # set environment
@@ -60,6 +66,13 @@ else:
 env.Append(CFLAGS   = ['-Wall', '-Werror', '-ansi'],
            CXXFLAGS = ['-Wall', '-Werror', '-ansi'])
 
+archFlags = arch.getFlags(env['arch'], env['compiler'])
+env.Append( CFLAGS    = archFlags,
+            CXXFLAGS  = archFlags,
+            F90FLAGS  = archFlags,
+            LINKFLAGS = archFlags )
+env.Append(CPPDEFINES=['ALIGNMENT=' + str(arch.getAlignment(env['arch']))])
+
 #
 # Compile mode settings
 #
@@ -78,7 +91,8 @@ elif env['compileMode'] == 'release':
 #
 
 env.Append(CPPDEFINES=['CONVERGENCE_ORDER='+env['order']])
-env.Append(CPPPATH=['#/src'])
+env.Append(CPPPATH=['#/src', '#/submodules/yateto/include'])
+env.Append(CXXFLAGS=['--std=c++11'])
 
 #
 # setup the program name and the build directory
@@ -93,6 +107,7 @@ env['buildDir'] = '%s/build_%s' %(env['buildDir'], env['programName'])
 env.sourceFiles = []
 
 Export('env')
+SConscript('generated_code/SConscript', variant_dir='#/'+env['buildDir'], src_dir='#/', duplicate=0)
 SConscript('src/SConscript', variant_dir='#/'+env['buildDir'], src_dir='#/', duplicate=0)
 Import('env')
 

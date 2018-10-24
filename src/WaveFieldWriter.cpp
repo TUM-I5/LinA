@@ -49,7 +49,7 @@ WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants co
         for (int x = 0; x < m_pointsPerDim; ++x) {
           double xi = (x+1) * subGridSpacing;
           double eta = (y+1) * subGridSpacing;
-          m_subsampleMatrix[bf * subGridSize + (y * m_pointsPerDim + x)] = (*basisFunctions[bf])(xi, eta);
+          //~ m_subsampleMatrix[bf * subGridSize + (y * m_pointsPerDim + x)] = (*basisFunctions[bf])(xi, eta);
         }
       }
     }

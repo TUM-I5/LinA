@@ -1,0 +1,37 @@
+import os
+
+Import('env')
+
+def generate_code(target, source, env, for_signature):
+  return './{} --matricesDir {} --outputDir {} --arch {} --order {}'.format(
+    source[0],
+    os.path.join(os.path.split(str(source[0]))[0], 'matrices'),
+    os.path.split(str(target[0]))[0],
+    env['arch'],
+    env['order']
+  )
+
+env.Append(BUILDERS = {'Generate': Builder(generator=generate_code)})
+
+yatetoDir = os.path.join(Dir('.').srcnode().abspath, 'yateto')
+yatetoFiles = [os.path.join(root, f) for root, dirs, files in os.walk(yatetoDir) for f in files if f.endswith('.py')]
+generated = env.Generate(['subroutine.cpp', 'subroutine.h', 'init.h', 'init.cpp', 'tensor.h', 'tensor.cpp', 'kernel.cpp', 'kernel.h', 'KernelTest.t.h'],
+                         ['acoustics.py'] + yatetoFiles)
+buildDir = '#/' + env['buildDir'] if not os.path.isabs(env['buildDir']) else env['buildDir']
+env.Append(CPPPATH=buildDir)
+
+cppFiles = filter(lambda t: str(t).endswith('.cpp'), generated)
+for cpp in cppFiles:
+  if str(cpp) == 'subroutine.cpp':
+    obj = env.Object(cpp, CXXFLAGS=env['CXXFLAGS'] + '-mno-red-zone')
+  else:
+    obj = env.Object(cpp)
+  env.Depends(obj, generated)
+  env.sourceFiles.append(obj)
+
+if hasattr(env, 'generatedTestSourceFiles'):
+  testFiles = filter(lambda t: str(t).endswith('.t.h'), generated)
+  for test in testFiles:
+    env.generatedTestSourceFiles.append(test.abspath)
+
+Export('env')

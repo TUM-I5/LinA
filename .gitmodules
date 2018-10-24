@@ -1,0 +1,3 @@
+[submodule "submodules/yateto"]
+	path = submodules/yateto
+	url = git@gitlab.lrz.de:gu74geb/yateto.git

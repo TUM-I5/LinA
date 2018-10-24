@@ -15,8 +15,10 @@ void computeVolumeIntegral( GlobalConstants const&  globals,
                             DegreesOfFreedom&       degreesOfFreedom );
 
 void computeFlux( double                  factor,
-                  double const            fluxMatrix[NUMBER_OF_BASIS_FUNCTIONS*NUMBER_OF_BASIS_FUNCTIONS],
-                  double const            rotatedFluxSolver[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES],
+                  unsigned                dim,
+                  unsigned                side1,
+                  unsigned                side2,
+                  double                  rotatedFluxSolver[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES],
                   DegreesOfFreedom const& timeIntegrated,
                   DegreesOfFreedom        degreesOfFreedom );
 

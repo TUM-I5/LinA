@@ -1,8 +1,10 @@
 #include "Kernels.h"
 #include "GEMM.h"
-#include "constants.h"
-#include "GlobalMatrices.h"
 #include "Model.h"
+#include "generated_code/init.h"
+#include "generated_code/kernel.h"
+
+using namespace lina;
 
 void computeAder( double                  timestep,
                   GlobalConstants const&  globals,
@@ -10,50 +12,43 @@ void computeAder( double                  timestep,
                   DegreesOfFreedom const& degreesOfFreedom,
                   DegreesOfFreedom&       timeIntegrated )
 {
-  double tmp[NUMBER_OF_DOFS] = {}; // zero initialisation
-  double derivatives[CONVERGENCE_ORDER][NUMBER_OF_DOFS] = {}; // zero initialisation
+  double derivativesBuffer[yateto::computeFamilySize<tensor::dQ>()] __attribute__((aligned(ALIGNMENT)));
   double A[NUMBER_OF_QUANTITIES * NUMBER_OF_QUANTITIES];
   double B[NUMBER_OF_QUANTITIES * NUMBER_OF_QUANTITIES];
-  
-  double factor = timestep;
 
-  for (unsigned dof = 0; dof < NUMBER_OF_DOFS; ++dof) {
-    derivatives[0][dof] = degreesOfFreedom[dof];
-    timeIntegrated[dof] = factor * degreesOfFreedom[dof];
-  }
-  
   computeA(material, A);
   computeB(material, B);
   
-  for (unsigned der = 1; der < CONVERGENCE_ORDER; ++der) {  
-    // tmp = Kxi^T * degreesOfFreedom
-    DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
-            1.0, GlobalMatrices::KxiT, NUMBER_OF_BASIS_FUNCTIONS,
-            derivatives[der-1], NUMBER_OF_BASIS_FUNCTIONS,
-            0.0, tmp, NUMBER_OF_BASIS_FUNCTIONS );
-    
-    // derivatives[der] = -1/hx * tmp * A
-    DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_QUANTITIES,
-            -1.0 / globals.hx, tmp, NUMBER_OF_BASIS_FUNCTIONS,
-            A, NUMBER_OF_QUANTITIES,
-            1.0, derivatives[der], NUMBER_OF_BASIS_FUNCTIONS );
-    
-    // tmp = Keta^T * degreesOfFreedom
-    DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
-            1.0, GlobalMatrices::KetaT, NUMBER_OF_BASIS_FUNCTIONS,
-            derivatives[der-1], NUMBER_OF_BASIS_FUNCTIONS,
-            0.0, tmp, NUMBER_OF_BASIS_FUNCTIONS );
-    
-    // derivatives[der] += -1/hy * tmp * B
-    DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_QUANTITIES,
-            -1.0 / globals.hy, tmp, NUMBER_OF_BASIS_FUNCTIONS,
-            B, NUMBER_OF_QUANTITIES,
-            1.0, derivatives[der], NUMBER_OF_BASIS_FUNCTIONS );
+  for (unsigned i = 0; i < NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES; ++i) {
+    A[i] *= -1.0 / globals.hx;
+    B[i] *= -1.0 / globals.hy;
+  }
 
-    factor *= timestep / (der + 1);
-    for (unsigned dof = 0; dof < NUMBER_OF_DOFS; ++dof) {
-      timeIntegrated[dof] += factor * derivatives[der][dof];
-    }
+  kernel::derivative krnl;
+  krnl.kDivMT = init::kDivMT::Values;
+  krnl.star(0) = A;
+  krnl.star(1) = B;
+
+  kernel::derivativeTaylorExpansion intKrnl;
+  intKrnl.I = timeIntegrated;
+
+  krnl.dQ(0) = const_cast<double*>(degreesOfFreedom);
+  intKrnl.dQ(0) = degreesOfFreedom;
+  unsigned offset = 0;
+  for (unsigned i = 1; i < yateto::numFamilyMembers<tensor::dQ>(); ++i) {
+    krnl.dQ(i) = derivativesBuffer + offset;
+    intKrnl.dQ(i) = derivativesBuffer + offset;
+    offset += tensor::dQ::size(i);
+  }
+  
+  intKrnl.power = timestep;
+  intKrnl.execute0();
+  
+  for (unsigned der = 1; der < CONVERGENCE_ORDER; ++der) {  
+    krnl.execute(der);
+
+    intKrnl.power *= timestep / (der+1);
+    intKrnl.execute(der);
   }
 }
 
@@ -64,53 +59,42 @@ void computeVolumeIntegral( GlobalConstants const&  globals,
 {
   double A[NUMBER_OF_QUANTITIES * NUMBER_OF_QUANTITIES];
   double B[NUMBER_OF_QUANTITIES * NUMBER_OF_QUANTITIES];
-  double tmp[NUMBER_OF_DOFS] = {}; // zero initialisation
   
   computeA(material, A);
   computeB(material, B);
   
-  // Computes tmp = Kxi * timeIntegrated
-  DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
-          1.0, GlobalMatrices::Kxi, NUMBER_OF_BASIS_FUNCTIONS,
-          timeIntegrated, NUMBER_OF_BASIS_FUNCTIONS,
-          0.0, tmp, NUMBER_OF_BASIS_FUNCTIONS );
-  
-  // Computes degreesOfFreedom += 1/hx tmp * A
-  DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_QUANTITIES,
-          1.0 / globals.hx, tmp, NUMBER_OF_BASIS_FUNCTIONS,
-          A, NUMBER_OF_QUANTITIES,
-          1.0, degreesOfFreedom, NUMBER_OF_BASIS_FUNCTIONS );
-  
-  // Computes tmp = Keta * timeIntegrated
-  DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
-          1.0, GlobalMatrices::Keta, NUMBER_OF_BASIS_FUNCTIONS,
-          timeIntegrated, NUMBER_OF_BASIS_FUNCTIONS,
-          0.0, tmp, NUMBER_OF_BASIS_FUNCTIONS );
-  
-  // Computes degreesOfFreedom += 1/hy tmp * B
-  DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_QUANTITIES,
-          1.0 / globals.hy, tmp, NUMBER_OF_BASIS_FUNCTIONS,
-          B, NUMBER_OF_QUANTITIES,
-          1.0, degreesOfFreedom, NUMBER_OF_BASIS_FUNCTIONS );
+  for (unsigned i = 0; i < NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES; ++i) {
+    A[i] *= 1.0 / globals.hx;
+    B[i] *= 1.0 / globals.hy;
+  }
+
+  kernel::volume krnl;
+  krnl.I = timeIntegrated;
+  krnl.Q = degreesOfFreedom;
+  krnl.kDivM = lina::init::kDivM::Values;
+  krnl.star(0) = A;
+  krnl.star(1) = B;
+
+  krnl.execute();
 }
 
 void computeFlux( double                  factor,
-                  double const            fluxMatrix[NUMBER_OF_BASIS_FUNCTIONS*NUMBER_OF_BASIS_FUNCTIONS],
-                  double const            rotatedFluxSolver[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES],
+                  unsigned                dim,
+                  unsigned                side1,
+                  unsigned                side2,
+                  double                  rotatedFluxSolver[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES],
                   DegreesOfFreedom const& timeIntegrated,
                   DegreesOfFreedom        degreesOfFreedom )
 {
-  double tmp[NUMBER_OF_DOFS] = {}; // zero initialisation
+  for (unsigned i = 0; i < NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES; ++i) {
+    rotatedFluxSolver[i] *= factor;
+  }
   
-  // Computes tmp = fluxMatrix * timeIntegrated
-  DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
-          1.0, fluxMatrix, NUMBER_OF_BASIS_FUNCTIONS,
-          timeIntegrated, NUMBER_OF_BASIS_FUNCTIONS,
-          0.0, tmp, NUMBER_OF_BASIS_FUNCTIONS );
+  kernel::flux krnl;
+  krnl.FDivM(side1,side2) = init::FDivM::Values[side2*2+side1];
+  krnl.I = timeIntegrated;
+  krnl.Q = degreesOfFreedom;
+  krnl.fluxSolver = rotatedFluxSolver;
   
-  // Computes degreesOfFreedom += factor * tmp * rotatedFluxSolver
-  DGEMM(  NUMBER_OF_BASIS_FUNCTIONS, NUMBER_OF_QUANTITIES, NUMBER_OF_QUANTITIES,
-          factor, tmp, NUMBER_OF_BASIS_FUNCTIONS,
-          rotatedFluxSolver, NUMBER_OF_QUANTITIES,
-          1.0, degreesOfFreedom, NUMBER_OF_BASIS_FUNCTIONS );
+  krnl.execute(dim, side1, side2);
 }
