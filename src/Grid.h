@@ -43,14 +43,12 @@ template<typename T>
 Grid<T>::Grid(int X, int Y)
   : m_X(X), m_Y(Y)
 {
-  //~ m_data = new T[X*Y];
   posix_memalign(reinterpret_cast<void**>(&m_data), ALIGNMENT, X*Y*sizeof(T));
   memset(m_data, 0, X*Y*sizeof(T));
 }
 
 template<typename T>
 Grid<T>::~Grid() {
-  //~ delete[] m_data;
   free(m_data);
 }
 

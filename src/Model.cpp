@@ -1,85 +1,88 @@
 #include "Model.h"
 
 #include <cstring>
-#include "GEMM.h"
+#include <generated_code/kernel.h>
 
-void computeA(Material const& material, double A[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES])
+void computeA(Material const& material, double A[lina::tensor::star::size(0)], double scale)
 {
-  memset(A, 0, NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES*sizeof(double));
-  A[0 * 2 + 1] = material.K0;
-  A[1 * 2 + 0] = 1.0 / material.rho0;
+  auto Av = lina::init::star::view<0>::create(A);
+  Av.setZero();
+  Av(1,0) = scale * material.K0;
+  Av(0,1) = scale / material.rho0;
 }
 
-void computeB(Material const& material, double B[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES])
+void computeB(Material const& material, double B[lina::tensor::star::size(1)], double scale)
 {
-  memset(B, 0, NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES*sizeof(double));
-  B[0 * NUMBER_OF_QUANTITIES + 2] = material.K0;
-  B[2 * NUMBER_OF_QUANTITIES + 0] = 1.0 / material.rho0;
+  auto Bv = lina::init::star::view<1>::create(B);
+  Bv.setZero();
+  Bv(2,0) = scale * material.K0;
+  Bv(0,2) = scale / material.rho0;
 }
 
 void rotateFluxSolver(  double        nx,
                         double        ny,
-                        double const  fluxSolver[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES],
-                        double        rotatedFluxSolver[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES] )
+                        double const  Apm[lina::tensor::Apm::size()],
+                        double        fluxSolver[lina::tensor::fluxSolver::size()],
+                        double        scale )
 {
-  double T[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES] = {}; // zero initialisation
-  double TT[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES] = {}; // zero initialisation
-  double tmp[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES] = {}; // zero initialisation
+  double T[lina::tensor::T::size()] = {}; // zero initialisation
+  double TT[lina::tensor::TT::size()] = {}; // zero initialisation
   
-  memset(rotatedFluxSolver, 0, NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES*sizeof(double));
+  auto Tv = lina::init::T::view::create(T);
+  auto TTv = lina::init::TT::view::create(TT);
   
-  T[0*NUMBER_OF_QUANTITIES + 0] = 1.0;
-  T[1*NUMBER_OF_QUANTITIES + 1] = nx;
-  T[1*NUMBER_OF_QUANTITIES + 2] = ny;
-  T[2*NUMBER_OF_QUANTITIES + 1] = -ny;
-  T[2*NUMBER_OF_QUANTITIES + 2] = nx;
+  Tv(0,0) = 1.0;
+  Tv(1,1) = nx;
+  Tv(2,1) = ny;
+  Tv(1,2) = -ny;
+  Tv(2,2) = nx;
   
-  TT[0*NUMBER_OF_QUANTITIES + 0] = 1.0;
-  TT[1*NUMBER_OF_QUANTITIES + 1] = nx;
-  TT[1*NUMBER_OF_QUANTITIES + 2] = -ny;
-  TT[2*NUMBER_OF_QUANTITIES + 1] = ny;
-  TT[2*NUMBER_OF_QUANTITIES + 2] = nx;
-  
-  DGEMM(  NUMBER_OF_QUANTITIES, NUMBER_OF_QUANTITIES, NUMBER_OF_QUANTITIES,
-          1.0, T, NUMBER_OF_QUANTITIES,
-          fluxSolver, NUMBER_OF_QUANTITIES,
-          0.0, tmp, NUMBER_OF_QUANTITIES );
-  
-  DGEMM(  NUMBER_OF_QUANTITIES, NUMBER_OF_QUANTITIES, NUMBER_OF_QUANTITIES,
-          1.0, tmp, NUMBER_OF_QUANTITIES,
-          TT, NUMBER_OF_QUANTITIES,
-          0.0, rotatedFluxSolver, NUMBER_OF_QUANTITIES );
+  TTv(0,0) = 1.0;
+  TTv(1,1) = nx;
+  TTv(2,1) = -ny;
+  TTv(1,2) = ny;
+  TTv(2,2) = nx;
+
+  lina::kernel::computeFluxSolver krnl;
+  krnl.fluxScale = scale;
+  krnl.fluxSolver = fluxSolver;
+  krnl.T = T;
+  krnl.TT = TT;
+  krnl.Apm = Apm;
+  krnl.execute();
 }
 
 void computeAplus( Material const&  local,
                    Material const&  neighbour,
-                   double           Aplus[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES] )
+                   double           Aplus[lina::tensor::Apm::size()] )
 {
-  memset(Aplus, 0, NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES*sizeof(double));
+  auto Ap = lina::init::Apm::view::create(Aplus);
+  Ap.setZero();
   
   double cm = local.wavespeed();
   double cp = neighbour.wavespeed();
   double div1 = 1.0 / (local.K0 * cp + neighbour.K0 * cm);
   double div2 = div1 / local.rho0;
-  Aplus[0*NUMBER_OF_QUANTITIES + 0] = local.K0 * cm * cp * div1;
-  Aplus[0*NUMBER_OF_QUANTITIES + 1] = local.K0 * local.K0 * cp * div1;
-  Aplus[1*NUMBER_OF_QUANTITIES + 0] = neighbour.K0 * cm * div2;
-  Aplus[1*NUMBER_OF_QUANTITIES + 1] = local.K0 * neighbour.K0 * div2;
+  Ap(0,0) = local.K0 * cm * cp * div1;
+  Ap(1,0) = local.K0 * local.K0 * cp * div1;
+  Ap(0,1) = neighbour.K0 * cm * div2;
+  Ap(1,1) = local.K0 * neighbour.K0 * div2;
 }
 
 void computeAminus( Material const& local,
                     Material const& neighbour,
-                    double          Aminus[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES] )
+                    double          Aminus[lina::tensor::Apm::size()] )
 {  
-  memset(Aminus, 0, NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES*sizeof(double));
+  auto Am = lina::init::Apm::view::create(Aminus);
+  Am.setZero();
   
   double cm = local.wavespeed();
   double cp = neighbour.wavespeed();
   double div1 = 1.0 / (local.K0 * cp + neighbour.K0 * cm);
   double div2 = div1 / local.rho0;
 
-  Aminus[0*NUMBER_OF_QUANTITIES + 0] = -local.K0 * cm * cp * div1;
-  Aminus[0*NUMBER_OF_QUANTITIES + 1] = local.K0 * neighbour.K0 * cm * div1;
-  Aminus[1*NUMBER_OF_QUANTITIES + 0] = local.K0 * cp * div2;
-  Aminus[1*NUMBER_OF_QUANTITIES + 1] = -local.K0 * neighbour.K0 * div2;
+  Am(0,0) = -local.K0 * cm * cp * div1;
+  Am(1,0) = local.K0 * neighbour.K0 * cm * div1;
+  Am(0,1) = local.K0 * cp * div2;
+  Am(1,1) = -local.K0 * neighbour.K0 * div2;
 }

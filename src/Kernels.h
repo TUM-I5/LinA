@@ -2,24 +2,27 @@
 #define KERNELS_H_
 
 #include "typedefs.h"
+#include "DGMatrices.h"
 
 void computeAder( double                  timestep,
-                  GlobalConstants const&  globals,
-                  Material const&         material,
+                  GlobalMatrices const&   globalMatrices,
+                  LocalMatrices const&    localMatrices,
                   DegreesOfFreedom const& degreesOfFreedom,
                   DegreesOfFreedom&       timeIntegrated );
                   
-void computeVolumeIntegral( GlobalConstants const&  globals,
-                            Material const&         material,
+void computeVolumeIntegral( GlobalMatrices const&   globalMatrices,
+                            LocalMatrices const&    localMatrices,
                             DegreesOfFreedom const& timeIntegrated,
                             DegreesOfFreedom&       degreesOfFreedom );
 
-void computeFlux( double                  factor,
-                  unsigned                dim,
-                  unsigned                side1,
-                  unsigned                side2,
-                  double                  rotatedFluxSolver[NUMBER_OF_QUANTITIES*NUMBER_OF_QUANTITIES],
-                  DegreesOfFreedom const& timeIntegrated,
-                  DegreesOfFreedom        degreesOfFreedom );
+void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
+                        LocalMatrices const&    localMatrices,
+                        DegreesOfFreedom const& timeIntegrated,
+                        DegreesOfFreedom        degreesOfFreedom );
+
+void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
+                            LocalMatrices const&    localMatrices,
+                            double*                 timeIntegrated[2][2],
+                            DegreesOfFreedom        degreesOfFreedom );
 
 #endif // KERNELS_H_

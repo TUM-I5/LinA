@@ -3,8 +3,9 @@
 
 #include <cmath>
 #include "constants.h"
+#include <generated_code/tensor.h>
 
-typedef double DegreesOfFreedom[NUMBER_OF_DOFS];
+typedef double DegreesOfFreedom[lina::tensor::Q::size()];
 
 struct GlobalConstants {
   double hx;

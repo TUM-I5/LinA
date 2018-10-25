@@ -34,8 +34,8 @@ initialCond = Tensor('initialCond', (numberOfQuadraturePoints, numberOfQuadratur
 # Flux solver
 fluxSolver = Tensor('fluxSolver', (numberOfQuantities, numberOfQuantities))
 T = Tensor('T', (numberOfQuantities, numberOfQuantities))
-Tinv = Tensor('Tinv', (numberOfQuantities, numberOfQuantities))
-Qgod = Tensor('Qgod', (numberOfQuantities, numberOfQuantities))
+TT = Tensor('TT', (numberOfQuantities, numberOfQuantities))
+Apm = Tensor('Apm', (numberOfQuantities, numberOfQuantities))
 
 # Kernels
 g = Generator(arch)
@@ -65,7 +65,7 @@ for i in range(1,order):
 
 ## Initialization kernels
 fluxScale = Scalar('fluxScale')
-computeFluxSolver = fluxSolver['ij'] <= fluxScale * Tinv['ki'] * Qgod['kq'] * db.star[0]['ql'] * T['jl']
+computeFluxSolver = fluxSolver['ij'] <= fluxScale * T['ik'] * Apm['kl'] * TT['lj']
 g.add('computeFluxSolver', computeFluxSolver)
 
 quadrature = Q['xyp'] <= db.quadrature['xl'] * db.quadrature['ym'] * initialCond['lmp']
