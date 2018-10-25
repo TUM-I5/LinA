@@ -2,7 +2,7 @@
 
 import argparse
 from yateto import *
-from yateto.input import parseJSONMatrixFile
+from yateto.input import parseJSONMatrixFile, memoryLayoutFromFile
 from yateto.ast.transformer import DeduceIndices, EquivalentSparsityPattern
 
 cmdLineParser = argparse.ArgumentParser()
@@ -10,6 +10,7 @@ cmdLineParser.add_argument('--matricesDir')
 cmdLineParser.add_argument('--outputDir')
 cmdLineParser.add_argument('--arch')
 cmdLineParser.add_argument('--order')
+cmdLineParser.add_argument('--memLayout')
 cmdLineArgs = cmdLineParser.parse_args()
 
 arch = useArchitectureIdentifiedBy(cmdLineArgs.arch)
@@ -29,8 +30,10 @@ clones = {
 }
 clones.update({a: [a, b] for a, b in Fnames})
 transpose = {'kDivMT', 'kTDivMT'} | set(b for a, b in Fnames)
-db = parseJSONMatrixFile('{}/matrices_{}.json'.format(cmdLineArgs.matricesDir, degree), clones, transpose=transpose)
+alignStride = {'kDivM', 'kTDivM'}
+db = parseJSONMatrixFile('{}/matrices_{}.json'.format(cmdLineArgs.matricesDir, degree), clones, transpose=transpose, alignStride=alignStride)
 db.update( parseJSONMatrixFile('{}/star.json'.format(cmdLineArgs.matricesDir)) )
+memoryLayoutFromFile(cmdLineArgs.memLayout, db, dict())
 
 Q = Tensor('Q', qShape)
 dQ0 = Tensor('dQ(0)', qShape)

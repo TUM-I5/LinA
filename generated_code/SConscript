@@ -3,12 +3,14 @@ import os
 Import('env')
 
 def generate_code(target, source, env, for_signature):
-  return './{} --matricesDir {} --outputDir {} --arch {} --order {}'.format(
+  scriptPath = os.path.split(str(source[0]))[0]
+  return './{} --matricesDir {} --outputDir {} --arch {} --order {} --memLayout {}'.format(
     source[0],
-    os.path.join(os.path.split(str(source[0]))[0], 'matrices'),
+    os.path.join(scriptPath, 'matrices'),
     os.path.split(str(target[0]))[0],
     env['arch'],
-    env['order']
+    env['order'],
+    os.path.join(scriptPath, 'config.xml')
   )
 
 env.Append(BUILDERS = {'Generate': Builder(generator=generate_code)})
@@ -16,7 +18,7 @@ env.Append(BUILDERS = {'Generate': Builder(generator=generate_code)})
 yatetoDir = os.path.join(Dir('.').srcnode().abspath, 'yateto')
 yatetoFiles = [os.path.join(root, f) for root, dirs, files in os.walk(yatetoDir) for f in files if f.endswith('.py')]
 generated = env.Generate(['subroutine.cpp', 'subroutine.h', 'init.h', 'init.cpp', 'tensor.h', 'tensor.cpp', 'kernel.cpp', 'kernel.h', 'KernelTest.t.h'],
-                         ['acoustics.py'] + yatetoFiles)
+                         ['acoustics.py', 'config.xml'] + yatetoFiles)
 buildDir = '#/' + env['buildDir'] if not os.path.isabs(env['buildDir']) else env['buildDir']
 env.Append(CPPPATH=buildDir)
 
