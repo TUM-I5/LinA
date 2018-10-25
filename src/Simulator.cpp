@@ -7,7 +7,6 @@
 #include "constants.h"
 #include "Kernels.h"
 #include "Model.h"
-#include "DGMatrices.h"
 #include "Stopwatch.h"
 
 double determineTimestep(double hx, double hy, Grid<Material>& materialGrid)
@@ -26,6 +25,7 @@ double determineTimestep(double hx, double hy, Grid<Material>& materialGrid)
 }
 
 int simulate( GlobalConstants const&  globals,
+              GlobalMatrices const&   globalMatrices,
               Grid<Material>&         materialGrid,
               Grid<DegreesOfFreedom>& degreesOfFreedomGrid,
               WaveFieldWriter&        waveFieldWriter,
@@ -43,7 +43,6 @@ int simulate( GlobalConstants const&  globals,
 
   Grid<DegreesOfFreedom> timeIntegratedGrid(globals.X, globals.Y);
 
-  GlobalMatrices globalMatrices;
   Grid<LocalMatrices> localMatricesGrid(globals.X, globals.Y);
   #pragma omp parallel for collapse(2)
   for (int y = 0; y < globals.Y; ++y) {

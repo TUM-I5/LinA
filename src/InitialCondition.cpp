@@ -5,6 +5,7 @@
 #include "generated_code/kernel.h"
 
 void initialCondition(  GlobalConstants const& globals,
+                        GlobalMatrices const& globalMatrices,
                         Grid<Material>& materialGrid,
                         Grid<DegreesOfFreedom>& degreesOfFreedomGrid  )
 {
@@ -21,7 +22,7 @@ void initialCondition(  GlobalConstants const& globals,
 
   lina::kernel::quadrature krnl;
   krnl.initialCond = icBuffer;
-  krnl.quadrature = lina::init::quadrature::Values;
+  krnl.quadrature = globalMatrices.quadrature;
 
   #pragma omp for collapse(2)  
   for (int y = 0; y < globals.Y; ++y) {

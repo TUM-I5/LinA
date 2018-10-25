@@ -6,12 +6,13 @@
 #include "Simulator.h"
 #include "Grid.h"
 #include "InitialCondition.h"
+#include "DGMatrices.h"
 
 #ifndef NDEBUG
 long long libxsmm_num_total_flops;
 #endif
 
-void initScenario0(GlobalConstants& globals, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid)
+void initScenario0(GlobalConstants& globals, GlobalMatrices const& globalMatrices, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid)
 {    
   for (int y = 0; y < globals.Y; ++y) {
     for (int x = 0; x < globals.X; ++x) {
@@ -21,10 +22,10 @@ void initScenario0(GlobalConstants& globals, Grid<Material>& materialGrid, Grid<
     }
   }
 
-  initialCondition(globals, materialGrid, degreesOfFreedomGrid);
+  initialCondition(globals, globalMatrices, materialGrid, degreesOfFreedomGrid);
 }
 
-void initScenario1(GlobalConstants& globals, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid)
+void initScenario1(GlobalConstants& globals, GlobalMatrices const& globalMatrices, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid)
 {
   double checkerWidth = 0.25;
 
@@ -42,7 +43,7 @@ void initScenario1(GlobalConstants& globals, Grid<Material>& materialGrid, Grid<
     }
   }
 
-  initialCondition(globals, materialGrid, degreesOfFreedomGrid);
+  initialCondition(globals, globalMatrices, materialGrid, degreesOfFreedomGrid);
 }
 
 double sourceFunctionAntiderivative(double time)
@@ -65,7 +66,7 @@ void initSourceTerm23(GlobalConstants& globals, SourceTerm& sourceterm)
   sourceterm.antiderivative = sourceFunctionAntiderivative;  
 }
 
-void initScenario2(GlobalConstants& globals, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid, SourceTerm& sourceterm)
+void initScenario2(GlobalConstants& globals, GlobalMatrices const& globalMatrices, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid, SourceTerm& sourceterm)
 {
   for (int y = 0; y < globals.Y; ++y) {
     for (int x = 0; x < globals.X; ++x) {
@@ -78,7 +79,7 @@ void initScenario2(GlobalConstants& globals, Grid<Material>& materialGrid, Grid<
   initSourceTerm23(globals, sourceterm);
 }
 
-void initScenario3(GlobalConstants& globals, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid, SourceTerm& sourceterm)
+void initScenario3(GlobalConstants& globals, GlobalMatrices const& globalMatrices, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid, SourceTerm& sourceterm)
 {
   for (int y = 0; y < globals.Y; ++y) {
     for (int x = 0; x < globals.X; ++x) {
@@ -147,22 +148,24 @@ int main(int argc, char** argv)
   globals.hx = 1. / globals.X;
   globals.hy = 1. / globals.Y;
   
+  GlobalMatrices globalMatrices;
+  
   Grid<DegreesOfFreedom> degreesOfFreedomGrid(globals.X, globals.Y);
   Grid<Material> materialGrid(globals.X, globals.Y);
   SourceTerm sourceterm;
   
   switch (scenario) {
     case 0:
-      initScenario0(globals, materialGrid, degreesOfFreedomGrid);
+      initScenario0(globals, globalMatrices, materialGrid, degreesOfFreedomGrid);
       break;
     case 1:
-      initScenario1(globals, materialGrid, degreesOfFreedomGrid);
+      initScenario1(globals, globalMatrices, materialGrid, degreesOfFreedomGrid);
       break;
     case 2:
-      initScenario2(globals, materialGrid, degreesOfFreedomGrid, sourceterm);
+      initScenario2(globals, globalMatrices, materialGrid, degreesOfFreedomGrid, sourceterm);
       break;
     case 3:
-      initScenario3(globals, materialGrid, degreesOfFreedomGrid, sourceterm);
+      initScenario3(globals, globalMatrices, materialGrid, degreesOfFreedomGrid, sourceterm);
       break;
     default:
       break;
@@ -172,7 +175,7 @@ int main(int argc, char** argv)
   
   WaveFieldWriter waveFieldWriter(wfwBasename, globals, wfwInterval, static_cast<int>(ceil( sqrt(NUMBER_OF_BASIS_FUNCTIONS) )));
 
-  int steps = simulate(globals, materialGrid, degreesOfFreedomGrid, waveFieldWriter, sourceterm);
+  int steps = simulate(globals, globalMatrices, materialGrid, degreesOfFreedomGrid, waveFieldWriter, sourceterm);
   
   if (scenario == 0) {
     double l2error[NUMBER_OF_QUANTITIES];

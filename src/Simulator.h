@@ -4,10 +4,12 @@
 #include "typedefs.h"
 #include "Grid.h"
 #include "WaveFieldWriter.h"
+#include "DGMatrices.h"
 
 double determineTimestep(double hx, double hy, Grid<Material>& materialGrid);
 
 int simulate( GlobalConstants const&  globals,
+              GlobalMatrices const&   globalMatrices,
               Grid<Material>&         materialGrid,
               Grid<DegreesOfFreedom>& degreesOfFreedomGrid,
               WaveFieldWriter&        waveFieldWriter,

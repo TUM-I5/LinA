@@ -11,6 +11,7 @@ public:
   double* kTDivMT;
   lina::tensor::FDivM::Container<double const*> FDivM;
   lina::tensor::FDivMT::Container<double const*> FDivMT;
+  double* quadrature;
   
   GlobalMatrices();
   ~GlobalMatrices();

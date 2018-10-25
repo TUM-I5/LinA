@@ -3,8 +3,10 @@
 
 #include "typedefs.h"
 #include "Grid.h"
+#include "DGMatrices.h"
 
 void initialCondition(  GlobalConstants const& globals,
+                        GlobalMatrices const&   globalMatrices,
                         Grid<Material>& materialGrid,
                         Grid<DegreesOfFreedom>& degreesOfFreedomGrid  );
 
