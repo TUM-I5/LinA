@@ -14,13 +14,16 @@ void initialCondition(  GlobalConstants const& globals,
 
   seissol::quadrature::GaussLegendre(points, weights, npoints);
 
+#pragma omp parallel
+{
   double icBuffer[lina::tensor::initialCond::Size] __attribute__((aligned(ALIGNMENT))) = {};
   auto ic = lina::init::initialCond::view::create(icBuffer);
 
   lina::kernel::quadrature krnl;
   krnl.initialCond = icBuffer;
   krnl.quadrature = lina::init::quadrature::Values;
-  
+
+  #pragma omp for collapse(2)  
   for (int y = 0; y < globals.Y; ++y) {
     for (int x = 0; x < globals.X; ++x) {
       DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(x, y);
@@ -47,6 +50,7 @@ void initialCondition(  GlobalConstants const& globals,
     }
   }
 }
+}
 
 void L2error( double time,
               GlobalConstants const& globals,
@@ -64,6 +68,7 @@ void L2error( double time,
   
   double area = globals.hx*globals.hy;
 
+  #pragma omp parallel for collapse(2) reduction(+:l2error[:NUMBER_OF_QUANTITIES])
   for (int y = 0; y < globals.Y; ++y) {
     for (int x = 0; x < globals.X; ++x) {
       DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(x, y);

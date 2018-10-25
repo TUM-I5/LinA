@@ -1,6 +1,6 @@
 import os
 import sys
-import commands
+#import commands
 import arch
 
 vars = Variables()
@@ -8,7 +8,7 @@ vars.AddVariables(
   EnumVariable( 'order',
                 'convergence order of the ADER-DG method',
                 'none',
-                allowed_values=('none', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12')
+                allowed_values=('none',) + tuple(str(i) for i in range(2,33))
               ),
   PathVariable( 'buildDir', 'where to build the code', 'build', PathVariable.PathIsDirCreate ),
   EnumVariable( 'compileMode', 'mode of the compilation', 'release',
@@ -98,7 +98,7 @@ env.Append(CXXFLAGS=['--std=c++11'])
 #
 # setup the program name and the build directory
 #
-env['programName'] = 'lina'
+env['programName'] = 'lina_' + str(env['order'])
 env['programFile'] = '%s/%s' %(env['buildDir'], env['programName'])
 
 # build directory
