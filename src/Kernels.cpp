@@ -15,7 +15,8 @@ void computeAder( double                  timestep,
   double derivativesBuffer[yateto::computeFamilySize<tensor::dQ>()] __attribute__((aligned(ALIGNMENT)));
 
   kernel::derivative krnl;
-  krnl.kDivMT = globalMatrices.kDivMT;
+  krnl.kTDivM = globalMatrices.kTDivM;
+  krnl.kTDivMT = globalMatrices.kTDivMT;
   krnl.star(0) = localMatrices.Astar;
   krnl.star(1) = localMatrices.Bstar;
 
@@ -42,6 +43,24 @@ void computeAder( double                  timestep,
   }
 }
 
+void flopsAder( unsigned int        &nonZeroFlops,
+                unsigned int        &hardwareFlops ) {
+  // initialization
+  nonZeroFlops  += kernel::derivativeTaylorExpansion::nonZeroFlops(0);
+  hardwareFlops += kernel::derivativeTaylorExpansion::hardwareFlops(0);
+
+  // interate over derivatives
+  for( unsigned der = 1; der < CONVERGENCE_ORDER; ++der ) {
+    nonZeroFlops  += kernel::derivative::nonZeroFlops(der);
+    hardwareFlops += kernel::derivative::hardwareFlops(der);
+
+    // update of time integrated DOFs
+    nonZeroFlops  += kernel::derivativeTaylorExpansion::nonZeroFlops(der);
+    hardwareFlops += kernel::derivativeTaylorExpansion::hardwareFlops(der);
+  }
+}
+
+
 void computeVolumeIntegral( GlobalMatrices const&   globalMatrices,
                             LocalMatrices const&    localMatrices,
                             DegreesOfFreedom const& timeIntegrated,
@@ -51,10 +70,17 @@ void computeVolumeIntegral( GlobalMatrices const&   globalMatrices,
   krnl.I = timeIntegrated;
   krnl.Q = degreesOfFreedom;
   krnl.kDivM = globalMatrices.kDivM;
+  krnl.kDivMT = globalMatrices.kDivMT;
   krnl.star(0) = localMatrices.Astar;
   krnl.star(1) = localMatrices.Bstar;
 
   krnl.execute();
+}
+
+void flopsVolume( unsigned int        &nonZeroFlops,
+                  unsigned int        &hardwareFlops ) {
+  nonZeroFlops  += kernel::volume::NonZeroFlops;
+  hardwareFlops += kernel::volume::HardwareFlops;
 }
 
 void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
@@ -64,6 +90,7 @@ void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
 {
   kernel::flux krnl;
   krnl.FDivM = globalMatrices.FDivM;
+  krnl.FDivMT = globalMatrices.FDivMT;
   krnl.I = timeIntegrated;
   krnl.Q = degreesOfFreedom;
   
@@ -75,6 +102,17 @@ void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
   }
 }
 
+void flopsLocalFlux( unsigned int        &nonZeroFlops,
+                     unsigned int        &hardwareFlops ) {
+  for (unsigned dim = 0; dim < 2; ++dim) {
+    for (unsigned side1 = 0; side1 < 2; ++side1) {
+      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1, side1);
+      hardwareFlops += kernel::flux::hardwareFlops(dim, side1, side1);
+    }
+  }
+}
+
+
 void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
                             LocalMatrices const&    localMatrices,
                             double*                 timeIntegrated[2][2],
@@ -82,6 +120,7 @@ void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
 {
   kernel::flux krnl;
   krnl.FDivM = globalMatrices.FDivM;
+  krnl.FDivMT = globalMatrices.FDivMT;
   krnl.Q = degreesOfFreedom;
   
   for (unsigned dim = 0; dim < 2; ++dim) {
@@ -93,3 +132,15 @@ void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
     }
   }
 }
+
+void flopsNeighbourFlux( unsigned int        &nonZeroFlops,
+                         unsigned int        &hardwareFlops ) {
+  for (unsigned dim = 0; dim < 2; ++dim) {
+    for (unsigned side1 = 0; side1 < 2; ++side1) {
+      unsigned side2 = 1-side1;
+      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1, side2);
+      hardwareFlops += kernel::flux::hardwareFlops(dim, side1, side2);
+    }
+  }
+}
+

@@ -8,6 +8,7 @@
 #include "Kernels.h"
 #include "Model.h"
 #include "DGMatrices.h"
+#include "Stopwatch.h"
 
 double determineTimestep(double hx, double hy, Grid<Material>& materialGrid)
 {
@@ -18,7 +19,10 @@ double determineTimestep(double hx, double hy, Grid<Material>& materialGrid)
     }
   }
   
-  return 0.25 * std::min(hx, hy)/((2*CONVERGENCE_ORDER-1) * maxWaveSpeed);
+  double PNPM[10]  = {1.0, 0.33, 0.17, 0.1, 0.069, 0.045, 0.038, 0.03, 0.02, 0.015};
+  double factor = (CONVERGENCE_ORDER < 10) ? PNPM[CONVERGENCE_ORDER] : 0.25/(2*CONVERGENCE_ORDER-1);
+
+  return factor * hx * hy / (maxWaveSpeed * (hx + hy));
 }
 
 int simulate( GlobalConstants const&  globals,
@@ -27,10 +31,21 @@ int simulate( GlobalConstants const&  globals,
               WaveFieldWriter&        waveFieldWriter,
               SourceTerm&             sourceterm  )
 {
+  unsigned nonZeroFlops = 0;
+  unsigned hardwareFlops = 0;
+  flopsAder(nonZeroFlops, hardwareFlops);
+  flopsVolume(nonZeroFlops, hardwareFlops);
+  flopsLocalFlux(nonZeroFlops, hardwareFlops);
+  flopsNeighbourFlux(nonZeroFlops, hardwareFlops);
+
+  std::cout << "Non-zero flops / element: " << nonZeroFlops << std::endl;
+  std::cout << "Hardware flops / element: " << hardwareFlops << std::endl;
+
   Grid<DegreesOfFreedom> timeIntegratedGrid(globals.X, globals.Y);
-  
+
   GlobalMatrices globalMatrices;
   Grid<LocalMatrices> localMatricesGrid(globals.X, globals.Y);
+  #pragma omp parallel for collapse(2)
   for (int y = 0; y < globals.Y; ++y) {
     for (int x = 0; x < globals.X; ++x) {
       Material& material = materialGrid.get(x, y);
@@ -58,6 +73,9 @@ int simulate( GlobalConstants const&  globals,
       }
     }
   }
+
+  Stopwatch sw;
+  sw.start();
   
   double time;
   int step = 0;
@@ -65,6 +83,7 @@ int simulate( GlobalConstants const&  globals,
     waveFieldWriter.writeTimestep(time, degreesOfFreedomGrid);
   
     double timestep = std::min(globals.maxTimestep, globals.endTime - time);
+    #pragma omp parallel for collapse(2)
     for (int y = 0; y < globals.Y; ++y) {
       for (int x = 0; x < globals.X; ++x) {        
         LocalMatrices& localMatrices = localMatricesGrid.get(x, y);
@@ -78,7 +97,8 @@ int simulate( GlobalConstants const&  globals,
         computeLocalFlux(globalMatrices, localMatrices, timeIntegrated, degreesOfFreedom);
       }
     }
-    
+
+    #pragma omp parallel for collapse(2)
     for (int y = 0; y < globals.Y; ++y) {
       for (int x = 0; x < globals.X; ++x) {
         LocalMatrices& localMatrices = localMatricesGrid.get(x, y);
@@ -111,8 +131,19 @@ int simulate( GlobalConstants const&  globals,
       std::cout << "At time / timestep: " << time << " / " << step << std::endl;
     }
   }
+
+  auto wallTime = sw.stop();
   
   waveFieldWriter.writeTimestep(globals.endTime, degreesOfFreedomGrid, true);
+
+  uint64_t totalNonZeroFlops = nonZeroFlops;
+  totalNonZeroFlops *= step * globals.X * globals.Y;
+  uint64_t totalHardwareFlops = hardwareFlops;
+  totalHardwareFlops *= step * globals.X * globals.Y;
+
+  std::cout << "Time (s): " << wallTime << std::endl;
+  std::cout << "Performance (NZ-GFLOPS): " << totalNonZeroFlops / wallTime * 1.0e-9 << std::endl;
+  std::cout << "Performance (HW-GFLOPS): " << totalHardwareFlops / wallTime * 1.0e-9 << std::endl;
   
   return step;
 }

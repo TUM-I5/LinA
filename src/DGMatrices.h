@@ -6,8 +6,11 @@
 class GlobalMatrices {
 public:
   double* kDivM;
+  double* kTDivM;
   double* kDivMT;
+  double* kTDivMT;
   lina::tensor::FDivM::Container<double const*> FDivM;
+  lina::tensor::FDivMT::Container<double const*> FDivMT;
   
   GlobalMatrices();
   ~GlobalMatrices();
