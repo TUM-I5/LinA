@@ -58,7 +58,15 @@ def flux(dim,side1,side2):
   if dim == 0:
     return Q['xyp'] <= Q['xyp'] + db.FDivM[side1,side2]['xl'] * I['lyq'] * fluxSolver['qp']
   return Q['xyp'] <= Q['xyp'] + db.FDivMT[side1,side2]['my'] * I['xmq'] * fluxSolver['qp']
-g.addFamily('flux', simpleParameterSpace(2,2,2), flux)
+def fluxPrefetch(dim,side1,side2):
+  if side1 == side2:
+    if dim == 1:
+      return Q if side1 == 1 else I
+  elif side1 != side2:
+    if dim != 1 or side1 != 1:
+      return I
+  return None
+g.addFamily('flux', simpleParameterSpace(2,2,2), flux, fluxPrefetch)
 
 power = Scalar('power')
 derivatives = [dQ0]

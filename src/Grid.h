@@ -44,7 +44,13 @@ Grid<T>::Grid(int X, int Y)
   : m_X(X), m_Y(Y)
 {
   posix_memalign(reinterpret_cast<void**>(&m_data), ALIGNMENT, X*Y*sizeof(T));
-  memset(m_data, 0, X*Y*sizeof(T));
+  #pragma omp parallel for collapse(2)
+  for (int y = 0; y < m_Y; ++y) {
+    for (int x = 0; x < m_X; ++x) {
+      T& data = get(x, y);
+      memset(&data, 0, sizeof(T));
+    }
+  }
 }
 
 template<typename T>
