@@ -1,6 +1,7 @@
 #include "DGMatrices.h"
 #include <yateto.h>
 #include <generated_code/init.h>
+#include <iostream>
 
 GlobalMatrices::GlobalMatrices() {
   size_t alignedReals = yateto::alignedReals<double>(ALIGNMENT);
@@ -13,7 +14,11 @@ GlobalMatrices::GlobalMatrices() {
   globalMatrixMemSize += yateto::computeFamilySize<lina::init::FDivMT>(alignedReals);
   globalMatrixMemSize += yateto::alignedUpper(lina::init::quadrature::size(), alignedReals);
 
-  posix_memalign(reinterpret_cast<void**>(&m_matrixMem), ALIGNMENT, globalMatrixMemSize * sizeof(double));
+  int err = posix_memalign(reinterpret_cast<void**>(&m_matrixMem), ALIGNMENT, globalMatrixMemSize * sizeof(double));
+  if (err) {
+    std::cerr << "Failed to allocate " << globalMatrixMemSize * sizeof(double) << " bytes in " << __FILE__ << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
   double* mem = m_matrixMem;
   yateto::copyTensorToMemAndSetPtr<lina::init::kDivM,   double>(mem, kDivM, ALIGNMENT);

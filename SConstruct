@@ -63,9 +63,17 @@ else:
 #
 
 # enforce restrictive C/C++-Code
-env.Append(CFLAGS   = ['-Wall', '-Werror', '-ansi', '-qopenmp'],
-           CXXFLAGS = ['-Wall', '-Werror', '-ansi', '-qopenmp'],
-	   LINKFLAGS = ['-qopenmp'])
+env.Append(CFLAGS   = ['-Wall', '-Werror', '-ansi'],
+           CXXFLAGS = ['-Wall', '-Werror', '-ansi'])
+
+if env['compiler'] == 'intel':
+  env.Append( CFLAGS   = ['-qopenmp'],
+              CXXFLAGS = ['-qopenmp'],
+              LINKFLAGS = ['-qopenmp'])
+else:
+  env.Append( CFLAGS   = ['-fopenmp'],
+              CXXFLAGS = ['-fopenmp'],
+              LINKFLAGS = ['-fopenmp'])
 
 archFlags = arch.getFlags(env['arch'], env['compiler'])
 env.Append( CFLAGS    = archFlags,

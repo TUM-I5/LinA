@@ -90,4 +90,5 @@ quadrature = Q['xyp'] <= db.quadrature['xl'] * db.quadrature['ym'] * initialCond
 g.add('quadrature', quadrature)
 
 # Generate code
-g.generate(cmdLineArgs.outputDir, 'lina')
+gemmTool = DefaultGeneratorCollection(arch)
+g.generate(cmdLineArgs.outputDir, 'lina', gemmTool)
