@@ -19,6 +19,7 @@ void computeAder( double                  timestep,
   krnl.kTDivMT = globalMatrices.kTDivMT;
   krnl.star(0) = localMatrices.Astar;
   krnl.star(1) = localMatrices.Bstar;
+  krnl.star(2) = localMatrices.Cstar;
 
   kernel::derivativeTaylorExpansion intKrnl;
   intKrnl.I = timeIntegrated;
@@ -73,6 +74,7 @@ void computeVolumeIntegral( GlobalMatrices const&   globalMatrices,
   krnl.kDivMT = globalMatrices.kDivMT;
   krnl.star(0) = localMatrices.Astar;
   krnl.star(1) = localMatrices.Bstar;
+  krnl.star(2) = localMatrices.Cstar;
 
   krnl.execute();
 }
@@ -96,7 +98,7 @@ void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
   krnl._prefetch.I = timeIntegrated + tensor::I::size();
   krnl._prefetch.Q = degreesOfFreedom + tensor::Q::size();
   
-  for (unsigned dim = 0; dim < 2; ++dim) {
+  for (unsigned dim = 0; dim < 3; ++dim) {
     for (unsigned side1 = 0; side1 < 2; ++side1) {
       krnl.fluxSolver = localMatrices.fluxSolver[dim][side1][side1];
       krnl.execute(dim, side1, side1);
@@ -106,7 +108,7 @@ void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
 
 void flopsLocalFlux( unsigned int        &nonZeroFlops,
                      unsigned int        &hardwareFlops ) {
-  for (unsigned dim = 0; dim < 2; ++dim) {
+  for (unsigned dim = 0; dim < 3; ++dim) {
     for (unsigned side1 = 0; side1 < 2; ++side1) {
       nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1, side1);
       hardwareFlops += kernel::flux::hardwareFlops(dim, side1, side1);
@@ -117,7 +119,7 @@ void flopsLocalFlux( unsigned int        &nonZeroFlops,
 
 void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
                             LocalMatrices const&    localMatrices,
-                            double*                 timeIntegrated[2][2],
+                            double*                 timeIntegrated[3][2],
                             DegreesOfFreedom        degreesOfFreedom )
 {
   kernel::flux krnl;
@@ -125,12 +127,12 @@ void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
   krnl.FDivMT = globalMatrices.FDivMT;
   krnl.Q = degreesOfFreedom;
   
-  for (unsigned dim = 0; dim < 2; ++dim) {
+  for (unsigned dim = 0; dim < 3; ++dim) {
     for (unsigned side1 = 0; side1 < 2; ++side1) {
       unsigned side2 = 1-side1;
       krnl.I = timeIntegrated[dim][side1];
       if (dim != 1 || side1 != 1) {
-        krnl._prefetch.I = timeIntegrated[dim+(side1+1)/2][(side1+1)%2];
+        //krnl._prefetch.I = timeIntegrated[dim+(side1+1)/2][(side1+1)%2];
       }
       krnl.fluxSolver = localMatrices.fluxSolver[dim][side1][side2];
       krnl.execute(dim, side1, side2);
@@ -140,7 +142,7 @@ void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
 
 void flopsNeighbourFlux( unsigned int        &nonZeroFlops,
                          unsigned int        &hardwareFlops ) {
-  for (unsigned dim = 0; dim < 2; ++dim) {
+  for (unsigned dim = 0; dim < 3; ++dim) {
     for (unsigned side1 = 0; side1 < 2; ++side1) {
       unsigned side2 = 1-side1;
       nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1, side2);

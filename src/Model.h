@@ -4,16 +4,20 @@
 #include "typedefs.h"
 #include <generated_code/init.h>
 
-/** Returns A in column-major storage */
-void computeA(Material const& material, double A[lina::tensor::star::size(0)], double scale);
+template<int Dim>
+void computeJacobian(Material const& material, double A[lina::tensor::star::size(Dim)], double scale)
+{
+  auto Av = lina::init::star::view<Dim>::create(A);
+  Av.setZero();
+  Av(1+Dim,0) = scale * material.K0;
+  Av(0,1+Dim) = scale / material.rho0;
+}
 
-/** Returns B in column-major storage */
-void computeB(Material const& material, double B[lina::tensor::star::size(1)], double scale);
-
-/** Returns rotated flux solver in column-major storage for face-aligned coordinate system in direction (nx, ny).
-  * (nx,ny) must be a unit vector, i.e. nx^2 + ny^2 = 1. */
+/** Returns rotated flux solver in column-major storage for face-aligned coordinate system in direction (nx, ny, nz).
+  * (nx,ny,nz) must be a unit vector, i.e. nx^2 + ny^2 + nz^2 = 1. */
 void rotateFluxSolver(  double        nx,
                         double        ny,
+                        double        nz,
                         double const  Apm[lina::tensor::Apm::size()],
                         double        fluxSolver[lina::tensor::fluxSolver::size()],
                         double        scale );

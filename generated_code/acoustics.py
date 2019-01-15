@@ -19,9 +19,9 @@ order = int(cmdLineArgs.order)
 degree = order-1
 numberOf1DBasisFunctions = order
 numberOfQuadraturePoints = order+1
-numberOfQuantities = 3
+numberOfQuantities = 4
 
-qShape = (numberOf1DBasisFunctions, numberOf1DBasisFunctions, numberOfQuantities)
+qShape = (numberOf1DBasisFunctions, numberOf1DBasisFunctions, numberOf1DBasisFunctions, numberOfQuantities)
 
 Fnames = [tuple('{}({},{})'.format(name, i,j) for name in ['FDivM', 'FDivMT']) for i in range(2) for j in range(2)]
 clones = {
@@ -39,7 +39,7 @@ Q = Tensor('Q', qShape)
 dQ0 = Tensor('dQ(0)', qShape)
 I = Tensor('I', qShape)
 
-initialCond = Tensor('initialCond', (numberOfQuadraturePoints, numberOfQuadraturePoints, numberOfQuantities))
+initialCond = Tensor('initialCond', (numberOfQuadraturePoints, numberOfQuadraturePoints, numberOfQuadraturePoints, numberOfQuantities))
 
 # Flux solver
 fluxSolver = Tensor('fluxSolver', (numberOfQuantities, numberOfQuantities))
@@ -51,13 +51,15 @@ Apm = Tensor('Apm', (numberOfQuantities, numberOfQuantities))
 g = Generator(arch)
 
 ## Main kernels
-volume = (Q['xyp'] <= Q['xyp'] + db.kDivM['xl'] * I['lyq'] * db.star[0]['qp'] + db.kDivMT['my'] * I['xmq'] * db.star[1]['qp'])
+volume = (Q['xyzp'] <= Q['xyzp'] + db.kDivM['xl'] * I['lyzq'] * db.star[0]['qp'] + db.kDivMT['my'] * I['xmzq'] * db.star[1]['qp'] + db.kDivMT['nz'] * I['xynq'] * db.star[2]['qp'])
 g.add('volume', volume)
 
 def flux(dim,side1,side2):
   if dim == 0:
-    return Q['xyp'] <= Q['xyp'] + db.FDivM[side1,side2]['xl'] * I['lyq'] * fluxSolver['qp']
-  return Q['xyp'] <= Q['xyp'] + db.FDivMT[side1,side2]['my'] * I['xmq'] * fluxSolver['qp']
+    return Q['xyzp'] <= Q['xyzp'] + db.FDivM[side1,side2]['xl'] * I['lyzq'] * fluxSolver['qp']
+  elif dim == 1:
+    return Q['xyzp'] <= Q['xyzp'] + db.FDivMT[side1,side2]['my'] * I['xmzq'] * fluxSolver['qp']
+  return Q['xyzp'] <= Q['xyzp'] + db.FDivMT[side1,side2]['nz'] * I['xynq'] * fluxSolver['qp']
 def fluxPrefetch(dim,side1,side2):
   if side1 == side2:
     if dim == 1:
@@ -66,18 +68,20 @@ def fluxPrefetch(dim,side1,side2):
     if dim != 1 or side1 != 1:
       return I
   return None
-g.addFamily('flux', simpleParameterSpace(2,2,2), flux, fluxPrefetch)
+g.addFamily('flux', simpleParameterSpace(3,2,2), flux, fluxPrefetch)
 
 power = Scalar('power')
 derivatives = [dQ0]
-g.add('derivativeTaylorExpansion(0)', I['xyp'] <= power * dQ0['xyp'])
+g.add('derivativeTaylorExpansion(0)', I['xyzp'] <= power * dQ0['xyzp'])
 for i in range(1,order):
-  derivativeSum = db.kTDivM['xl'] * derivatives[-1]['lyq'] * db.star[0]['qp'] + db.kTDivMT['my'] * derivatives[-1]['xmq'] * db.star[1]['qp']
-  derivativeSum = DeduceIndices( Q['xyp'].indices ).visit(derivativeSum)
+  derivativeSum = db.kTDivM['xl'] * derivatives[-1]['lyzq'] * db.star[0]['qp']    \
+                  + db.kTDivMT['my'] * derivatives[-1]['xmzq'] * db.star[1]['qp'] \
+                  + db.kTDivMT['nz'] * derivatives[-1]['xynq'] * db.star[2]['qp']
+  derivativeSum = DeduceIndices( Q['xyzp'].indices ).visit(derivativeSum)
   derivativeSum = EquivalentSparsityPattern().visit(derivativeSum)
   dQ = Tensor('dQ({})'.format(i), qShape, spp=derivativeSum.eqspp())
-  g.add('derivative({})'.format(i), dQ['xyp'] <= derivativeSum)
-  g.add('derivativeTaylorExpansion({})'.format(i), I['xyp'] <= I['xyp'] + power * dQ['xyp'])
+  g.add('derivative({})'.format(i), dQ['xyzp'] <= derivativeSum)
+  g.add('derivativeTaylorExpansion({})'.format(i), I['xyzp'] <= I['xyzp'] + power * dQ['xyzp'])
   derivatives.append(dQ)
 
 
@@ -86,7 +90,7 @@ fluxScale = Scalar('fluxScale')
 computeFluxSolver = fluxSolver['ij'] <= fluxScale * T['ik'] * Apm['kl'] * TT['lj']
 g.add('computeFluxSolver', computeFluxSolver)
 
-quadrature = Q['xyp'] <= db.quadrature['xl'] * db.quadrature['ym'] * initialCond['lmp']
+quadrature = Q['xyzp'] <= db.quadrature['xl'] * db.quadrature['ym'] * db.quadrature['zn'] * initialCond['lmnp']
 g.add('quadrature', quadrature)
 
 # Generate code

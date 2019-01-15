@@ -3,45 +3,58 @@
 #include <cstring>
 #include <generated_code/kernel.h>
 
-void computeA(Material const& material, double A[lina::tensor::star::size(0)], double scale)
-{
-  auto Av = lina::init::star::view<0>::create(A);
-  Av.setZero();
-  Av(1,0) = scale * material.K0;
-  Av(0,1) = scale / material.rho0;
-}
-
-void computeB(Material const& material, double B[lina::tensor::star::size(1)], double scale)
-{
-  auto Bv = lina::init::star::view<1>::create(B);
-  Bv.setZero();
-  Bv(2,0) = scale * material.K0;
-  Bv(0,2) = scale / material.rho0;
-}
-
 void rotateFluxSolver(  double        nx,
                         double        ny,
+                        double        nz,
                         double const  Apm[lina::tensor::Apm::size()],
                         double        fluxSolver[lina::tensor::fluxSolver::size()],
                         double        scale )
 {
-  double T[lina::tensor::T::size()] = {}; // zero initialisation
-  double TT[lina::tensor::TT::size()] = {}; // zero initialisation
+  double T[lina::tensor::T::size()] __attribute__((aligned(ALIGNMENT))) = {}; // zero initialisation
+  double TT[lina::tensor::TT::size()] __attribute__((aligned(ALIGNMENT))) = {}; // zero initialisation
   
   auto Tv = lina::init::T::view::create(T);
   auto TTv = lina::init::TT::view::create(TT);
   
+  double sx = 0.0, sy = 0.0, sz = 0.0, tx = 0.0, ty = 0.0, tz = 0.0;
+  if (fabs(nx) > fabs(ny)) {
+    sx = nz;
+    sz = -nx;
+  } else {
+    sy = -nz;
+    sz = ny;
+  }
+  double norm = sqrt(sx*sx + sy*sy + sz*sz);
+  sx /= norm;
+  sy /= norm;
+  sz /= norm;
+  
+  // t = n x s
+  tx = ny*sz - nz*sy;
+  ty = nz*sx - nx*sz;
+  tz = nx*sy - ny*sx;
+  
   Tv(0,0) = 1.0;
   Tv(1,1) = nx;
   Tv(2,1) = ny;
-  Tv(1,2) = -ny;
-  Tv(2,2) = nx;
+  Tv(3,1) = nz;
+  Tv(1,2) = sx;
+  Tv(2,2) = sy;
+  Tv(3,2) = sz;
+  Tv(1,3) = tx;
+  Tv(2,3) = ty;
+  Tv(3,3) = tz;
   
   TTv(0,0) = 1.0;
   TTv(1,1) = nx;
-  TTv(2,1) = -ny;
   TTv(1,2) = ny;
-  TTv(2,2) = nx;
+  TTv(1,3) = nz;
+  TTv(2,1) = sx;
+  TTv(2,2) = sy;
+  TTv(2,3) = sz;
+  TTv(3,1) = tx;
+  TTv(3,2) = ty;
+  TTv(3,3) = tz;
 
   lina::kernel::computeFluxSolver krnl;
   krnl.fluxScale = scale;

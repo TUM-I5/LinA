@@ -20,6 +20,7 @@ private:
   float*        m_pressure;
   float*        m_uvel;
   float*        m_vvel;
+  float*        m_wvel;
   double        m_interval;
   double        m_lastTime;
   double*       m_subsampleMatrix;

@@ -10,8 +10,10 @@ typedef double DegreesOfFreedom[lina::tensor::Q::size()];
 struct GlobalConstants {
   double hx;
   double hy;
+  double hz;
   int X;
   int Y;
+  int Z;
   double maxTimestep;
   double endTime;
 };
@@ -24,9 +26,10 @@ struct Material {
 };
 
 struct SourceTerm {
-  SourceTerm() : x(-1), y(-1) {} // -1 == invalid
+  SourceTerm() : x(-1), y(-1), z(-1) {} // -1 == invalid
   int x;
   int y;
+  int z;
   double phi[NUMBER_OF_BASIS_FUNCTIONS];
   double (*antiderivative)(double);
   int quantity;

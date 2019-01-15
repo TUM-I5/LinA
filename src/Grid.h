@@ -8,7 +8,7 @@
 template<typename T>
 class Grid {
 public:
-  Grid(int X, int Y);
+  Grid(int X, int Y, int Z);
   ~Grid();
   
   /// Implements periodic boundary conditions
@@ -22,8 +22,8 @@ public:
     return pi;
   }
   
-  inline T& get(int x, int y) {
-    return m_data[periodicIndex(y, m_Y) * m_X + periodicIndex(x, m_X)];
+  inline T& get(int x, int y, int z) {
+    return m_data[periodicIndex(z, m_Z) * m_X * m_Z + periodicIndex(y, m_Y) * m_X + periodicIndex(x, m_X)];
   }
   
   inline int X() const {
@@ -33,27 +33,34 @@ public:
   inline int Y() const {
     return m_Y;
   }
+  
+  inline int Z() const {
+    return m_Z;
+  }
 
 private:
   int m_X;
   int m_Y;
+  int m_Z;
   T* m_data;
 };
 
 template<typename T>
-Grid<T>::Grid(int X, int Y)
-  : m_X(X), m_Y(Y)
+Grid<T>::Grid(int X, int Y, int Z)
+  : m_X(X), m_Y(Y), m_Z(Z)
 {
-  int err = posix_memalign(reinterpret_cast<void**>(&m_data), ALIGNMENT, X*Y*sizeof(T));
+  int err = posix_memalign(reinterpret_cast<void**>(&m_data), ALIGNMENT, X*Y*Z*sizeof(T));
   if (err) {
-    std::cerr << "Failed to allocate " << X*Y*sizeof(T) << " bytes in " << __FILE__ << std::endl;
+    std::cerr << "Failed to allocate " << X*Y*Z*sizeof(T) << " bytes in " << __FILE__ << std::endl;
     exit(EXIT_FAILURE);
   }
-  #pragma omp parallel for collapse(2)
-  for (int y = 0; y < m_Y; ++y) {
-    for (int x = 0; x < m_X; ++x) {
-      T& data = get(x, y);
-      memset(&data, 0, sizeof(T));
+  #pragma omp parallel for collapse(3)
+  for (int z = 0; z < m_Z; ++z) {
+    for (int y = 0; y < m_Y; ++y) {
+      for (int x = 0; x < m_X; ++x) {
+        T& data = get(x, y, z);
+        memset(&data, 0, sizeof(T));
+      }
     }
   }
 }

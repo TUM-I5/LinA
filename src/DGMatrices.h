@@ -23,7 +23,8 @@ private:
 struct LocalMatrices {
   double Astar[lina::tensor::star::size(0)];
   double Bstar[lina::tensor::star::size(1)];
-  double fluxSolver[2][2][2][lina::tensor::fluxSolver::size()];
+  double Cstar[lina::tensor::star::size(2)];
+  double fluxSolver[3][2][2][lina::tensor::fluxSolver::size()];
 };
 
 #endif // DGMATRICES_H_

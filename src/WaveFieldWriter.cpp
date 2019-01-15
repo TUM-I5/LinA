@@ -25,7 +25,7 @@ WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants co
             << "    </Geometry>" << std::endl
             << "    <Grid Name=\"TimeSeries\" GridType=\"Collection\" CollectionType=\"Temporal\">" << std::endl;
 
-    int gridSize = m_pointsPerDim * m_pointsPerDim * globals.X * globals.Y;
+    int gridSize = m_pointsPerDim * m_pointsPerDim * m_pointsPerDim * globals.X * globals.Y * globals.Z;
     m_pressure = new float[gridSize];
     m_uvel = new float[gridSize];
     m_vvel = new float[gridSize];
@@ -41,7 +41,7 @@ WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants co
     m_dirName = baseName.substr(0, lastFound);
     m_baseName = baseName.substr(lastFound);
     
-    unsigned subGridSize = m_pointsPerDim * m_pointsPerDim;
+    unsigned subGridSize = m_pointsPerDim * m_pointsPerDim * m_pointsPerDim;
     m_subsampleMatrix = new double[subGridSize * NUMBER_OF_BASIS_FUNCTIONS];
     /*double subGridSpacing = 1.0 / (m_pointsPerDim + 1);
     for (int bf = 0; bf < NUMBER_OF_BASIS_FUNCTIONS; ++bf) {
@@ -71,6 +71,7 @@ WaveFieldWriter::~WaveFieldWriter()
     delete[] m_pressure;
     delete[] m_uvel;
     delete[] m_vvel;
+    delete[] m_wvel;
   }
 }
 
@@ -79,10 +80,11 @@ void WaveFieldWriter::writeTimestep(double time, Grid<DegreesOfFreedom>& degrees
   if (!m_baseName.empty() && (time >= m_lastTime + m_interval || forceWrite)) {
     m_lastTime = time;
     
-    std::stringstream pressureFileName, uvelFileName, vvelFileName;
+    std::stringstream pressureFileName, uvelFileName, vvelFileName, wvelFileName;
     pressureFileName << m_baseName << "_pressure" << m_step << ".bin";
     uvelFileName << m_baseName << "_u" << m_step << ".bin";
     vvelFileName << m_baseName << "_v" << m_step << ".bin";
+    wvelFileName << m_baseName << "_w" << m_step << ".bin";
     
     m_xdmf  << "      <Grid Name=\"step_" << m_step << "\" GridType=\"Uniform\">" << std::setw(0) << std::endl
             << "        <Topology Reference=\"/Xdmf/Domain/Topology[1]\"/>" << std::endl
@@ -105,22 +107,25 @@ void WaveFieldWriter::writeTimestep(double time, Grid<DegreesOfFreedom>& degrees
             << "        </Attribute>" << std::endl
             << "      </Grid>" << std::endl;
 
-    unsigned subGridSize = m_pointsPerDim * m_pointsPerDim;
-    for (int y = 0; y < degreesOfFreedomGrid.Y(); ++y) {
-      for (int x = 0; x < degreesOfFreedomGrid.X(); ++x) {
-        DGEMM(  subGridSize, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
-                1.0, m_subsampleMatrix, subGridSize,
-                degreesOfFreedomGrid.get(x, y), NUMBER_OF_BASIS_FUNCTIONS,
-                0.0, m_subsamples, subGridSize );
+    unsigned subGridSize = m_pointsPerDim * m_pointsPerDim * m_pointsPerDim;
+    for (int z = 0; z < degreesOfFreedomGrid.Z(); ++z) {
+      for (int y = 0; y < degreesOfFreedomGrid.Y(); ++y) {
+        for (int x = 0; x < degreesOfFreedomGrid.X(); ++x) {
+          /*DGEMM(  subGridSize, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
+                  1.0, m_subsampleMatrix, subGridSize,
+                  degreesOfFreedomGrid.get(x, y), NUMBER_OF_BASIS_FUNCTIONS,
+                  0.0, m_subsamples, subGridSize );
 
-        for (int ysub = 0; ysub < m_pointsPerDim; ++ysub) {
-          for (int xsub = 0; xsub < m_pointsPerDim; ++xsub) {
-            unsigned subIndex = ysub * m_pointsPerDim + xsub;
-            unsigned targetIndex = (y*m_pointsPerDim+ysub)*m_pointsPerDim*degreesOfFreedomGrid.X() + (x*m_pointsPerDim+xsub);
-            m_pressure[targetIndex] = m_subsamples[0 * subGridSize + subIndex];
-            m_uvel[targetIndex] = m_subsamples[1 * subGridSize + subIndex];
-            m_vvel[targetIndex] = m_subsamples[2 * subGridSize + subIndex];
-          }
+          for (int ysub = 0; ysub < m_pointsPerDim; ++ysub) {
+            for (int xsub = 0; xsub < m_pointsPerDim; ++xsub) {
+              unsigned subIndex = ysub * m_pointsPerDim + xsub;
+              unsigned targetIndex = (y*m_pointsPerDim+ysub)*m_pointsPerDim*degreesOfFreedomGrid.X() + (x*m_pointsPerDim+xsub);
+              m_pressure[targetIndex] = m_subsamples[0 * subGridSize + subIndex];
+              m_uvel[targetIndex] = m_subsamples[1 * subGridSize + subIndex];
+              m_vvel[targetIndex] = m_subsamples[2 * subGridSize + subIndex];
+              m_wvel[targetIndex] = m_subsamples[3 * subGridSize + subIndex];
+            }
+          }*/
         }
       }
     }
@@ -130,12 +135,16 @@ void WaveFieldWriter::writeTimestep(double time, Grid<DegreesOfFreedom>& degrees
     fclose(pressureFile);
     
     FILE* uFile = fopen((m_dirName + uvelFileName.str()).c_str(), "wb");
-    fwrite(m_uvel, sizeof(float), subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y(), uFile);
+    fwrite(m_uvel, sizeof(float), subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y()*degreesOfFreedomGrid.Z(), uFile);
     fclose(uFile);
     
     FILE* vFile = fopen((m_dirName + vvelFileName.str()).c_str(), "wb");
-    fwrite(m_vvel, sizeof(float), subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y(), vFile);
+    fwrite(m_vvel, sizeof(float), subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y()*degreesOfFreedomGrid.Z(), vFile);
     fclose(vFile);
+    
+    FILE* wFile = fopen((m_dirName + wvelFileName.str()).c_str(), "wb");
+    fwrite(m_wvel, sizeof(float), subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y()*degreesOfFreedomGrid.Z(), wFile);
+    fclose(wFile);
     
     ++m_step;
   }
