@@ -10,7 +10,7 @@ def generate_code(target, source, env, for_signature):
     os.path.split(str(target[0]))[0],
     env['arch'],
     env['order'],
-    os.path.join(scriptPath, 'config_dense.xml')
+    os.path.join(scriptPath, 'config.xml')
   )
 
 env.Append(BUILDERS = {'Generate': Builder(generator=generate_code)})

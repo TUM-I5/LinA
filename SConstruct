@@ -62,6 +62,13 @@ else:
 # Common settings
 #
 
+# Link to MKL
+env.Append(LIBS=['mkl_intel_lp64', 'mkl_sequential', 'mkl_core'])
+mklroot = env['ENV']['MKLROOT']
+if mklroot:
+  env.Append(LIBPATH=os.path.join(mklroot, 'lib', 'intel64'))
+  env.Append(CPPPATH=os.path.join(mklroot, 'include'))
+
 # enforce restrictive C/C++-Code
 env.Append(CFLAGS   = ['-Wall', '-Werror', '-ansi'],
            CXXFLAGS = ['-Wall', '-Werror', '-ansi'])
