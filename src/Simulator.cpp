@@ -52,12 +52,12 @@ int simulate( GlobalConstants const&  globals,
       computeA(material, localMatrices.Astar, 1.0 / globals.hx);
       computeB(material, localMatrices.Bstar, 1.0 / globals.hx);
 
-      double Apm[lina::tensor::Apm::size()];
-      double fluxScale = -globals.hy / (globals.hx * globals.hy);
-      for (unsigned dim = 0; dim < 2; ++dim) {
-        for (unsigned side1 = 0; side1 < 2; ++side1) {
-          unsigned xn = x + (1-dim)*(2*side1-1);
-          unsigned yn = y +    dim *(2*side1-1);
+      real Apm[lina::tensor::Apm::size()];
+      real fluxScale = -globals.hy / (globals.hx * globals.hy);
+      for (int dim = 0; dim < 2; ++dim) {
+        for (int side1 = 0; side1 < 2; ++side1) {
+          int xn = x + (1-dim)*(2*side1-1);
+          int yn = y +    dim *(2*side1-1);
           double nx = (1-dim)*(2.0*side1-1.0);
           double ny =    dim *(2.0*side1-1.0);
           for (unsigned side2 = 0; side2 < 2; ++side2) {
@@ -103,11 +103,11 @@ int simulate( GlobalConstants const&  globals,
         LocalMatrices& localMatrices = localMatricesGrid.get(x, y);
         DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(x, y);
         
-        double* timeIntegrated[2][2];
-        for (unsigned dim = 0; dim < 2; ++dim) {
-          for (unsigned side1 = 0; side1 < 2; ++side1) {
-            unsigned xn = x + (1-dim)*(2*side1-1);
-            unsigned yn = y +    dim *(2*side1-1);
+        real* timeIntegrated[2][2];
+        for (int dim = 0; dim < 2; ++dim) {
+          for (int side1 = 0; side1 < 2; ++side1) {
+            int xn = x + (1-dim)*(2*side1-1);
+            int yn = y +    dim *(2*side1-1);
             timeIntegrated[dim][side1] = timeIntegratedGrid.get(xn, yn);
           }
         }

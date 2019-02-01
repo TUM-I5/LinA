@@ -3,7 +3,7 @@
 #include <cstring>
 #include <generated_code/kernel.h>
 
-void computeA(Material const& material, double A[lina::tensor::star::size(0)], double scale)
+void computeA(Material const& material, real A[lina::tensor::star::size(0)], double scale)
 {
   auto Av = lina::init::star::view<0>::create(A);
   Av.setZero();
@@ -11,7 +11,7 @@ void computeA(Material const& material, double A[lina::tensor::star::size(0)], d
   Av(0,1) = scale / material.rho0;
 }
 
-void computeB(Material const& material, double B[lina::tensor::star::size(1)], double scale)
+void computeB(Material const& material, real B[lina::tensor::star::size(1)], double scale)
 {
   auto Bv = lina::init::star::view<1>::create(B);
   Bv.setZero();
@@ -21,12 +21,12 @@ void computeB(Material const& material, double B[lina::tensor::star::size(1)], d
 
 void rotateFluxSolver(  double        nx,
                         double        ny,
-                        double const  Apm[lina::tensor::Apm::size()],
-                        double        fluxSolver[lina::tensor::fluxSolver::size()],
+                        real const    Apm[lina::tensor::Apm::size()],
+                        real          fluxSolver[lina::tensor::fluxSolver::size()],
                         double        scale )
 {
-  double T[lina::tensor::T::size()] = {}; // zero initialisation
-  double TT[lina::tensor::TT::size()] = {}; // zero initialisation
+  real T[lina::tensor::T::size()] __attribute__((aligned(ALIGNMENT))) = {}; // zero initialisation
+  real TT[lina::tensor::TT::size()] __attribute__((aligned(ALIGNMENT))) = {}; // zero initialisation
   
   auto Tv = lina::init::T::view::create(T);
   auto TTv = lina::init::TT::view::create(TT);
@@ -54,7 +54,7 @@ void rotateFluxSolver(  double        nx,
 
 void computeAplus( Material const&  local,
                    Material const&  neighbour,
-                   double           Aplus[lina::tensor::Apm::size()] )
+                   real             Aplus[lina::tensor::Apm::size()] )
 {
   auto Ap = lina::init::Apm::view::create(Aplus);
   Ap.setZero();
@@ -71,7 +71,7 @@ void computeAplus( Material const&  local,
 
 void computeAminus( Material const& local,
                     Material const& neighbour,
-                    double          Aminus[lina::tensor::Apm::size()] )
+                    real            Aminus[lina::tensor::Apm::size()] )
 {  
   auto Am = lina::init::Apm::view::create(Aminus);
   Am.setZero();

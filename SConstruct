@@ -70,8 +70,8 @@ if mklroot:
   env.Append(CPPPATH=os.path.join(mklroot, 'include'))
 
 # enforce restrictive C/C++-Code
-env.Append(CFLAGS   = ['-Wall', '-Werror', '-ansi'],
-           CXXFLAGS = ['-Wall', '-Werror', '-ansi'])
+env.Append(CFLAGS   = ['-Wall', '-ansi'],
+           CXXFLAGS = ['-Wall', '-ansi'])
 
 if env['compiler'] == 'intel':
   env.Append( CFLAGS   = ['-qopenmp'],
@@ -87,7 +87,7 @@ env.Append( CFLAGS    = archFlags,
             CXXFLAGS  = archFlags,
             F90FLAGS  = archFlags,
             LINKFLAGS = archFlags )
-env.Append(CPPDEFINES=['ALIGNMENT=' + str(arch.getAlignment(env['arch']))])
+env.Append(CPPDEFINES=arch.getDefines(env['arch']))
 
 #
 # Compile mode settings
@@ -113,7 +113,7 @@ env.Append(CXXFLAGS=['--std=c++11'])
 #
 # setup the program name and the build directory
 #
-env['programName'] = 'lina_' + str(env['order'])
+env['programName'] = 'lina_{}_{}'.format(env['arch'], env['order'])
 env['programFile'] = '%s/%s' %(env['buildDir'], env['programName'])
 
 # build directory

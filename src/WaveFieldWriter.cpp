@@ -42,7 +42,7 @@ WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants co
     m_baseName = baseName.substr(lastFound);
     
     unsigned subGridSize = m_pointsPerDim * m_pointsPerDim;
-    m_subsampleMatrix = new double[subGridSize * NUMBER_OF_BASIS_FUNCTIONS];
+    m_subsampleMatrix = new real[subGridSize * NUMBER_OF_BASIS_FUNCTIONS];
     /*double subGridSpacing = 1.0 / (m_pointsPerDim + 1);
     for (int bf = 0; bf < NUMBER_OF_BASIS_FUNCTIONS; ++bf) {
       for (int y = 0; y < m_pointsPerDim; ++y) {
@@ -53,8 +53,8 @@ WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants co
         }
       }
     }*/
-    m_subsamples = new double[subGridSize * NUMBER_OF_QUANTITIES];
-    memset(m_subsamples, 0, subGridSize * NUMBER_OF_QUANTITIES * sizeof(double));
+    m_subsamples = new real[subGridSize * NUMBER_OF_QUANTITIES];
+    memset(m_subsamples, 0, subGridSize * NUMBER_OF_QUANTITIES * sizeof(real));
   }
 }
 
@@ -108,7 +108,7 @@ void WaveFieldWriter::writeTimestep(double time, Grid<DegreesOfFreedom>& degrees
     unsigned subGridSize = m_pointsPerDim * m_pointsPerDim;
     for (int y = 0; y < degreesOfFreedomGrid.Y(); ++y) {
       for (int x = 0; x < degreesOfFreedomGrid.X(); ++x) {
-        DGEMM(  subGridSize, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
+/*        DGEMM(  subGridSize, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
                 1.0, m_subsampleMatrix, subGridSize,
                 degreesOfFreedomGrid.get(x, y), NUMBER_OF_BASIS_FUNCTIONS,
                 0.0, m_subsamples, subGridSize );
@@ -121,7 +121,7 @@ void WaveFieldWriter::writeTimestep(double time, Grid<DegreesOfFreedom>& degrees
             m_uvel[targetIndex] = m_subsamples[1 * subGridSize + subIndex];
             m_vvel[targetIndex] = m_subsamples[2 * subGridSize + subIndex];
           }
-        }
+        }*/
       }
     }
     

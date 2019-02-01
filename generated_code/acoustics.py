@@ -65,20 +65,18 @@ def fluxPrefetch(dim,side1,side2):
   elif side1 != side2:
     if dim != 1 or side1 != 1:
       return I
+    else:
+      return Q
   return None
 g.addFamily('flux', simpleParameterSpace(2,2,2), flux, fluxPrefetch)
 
 power = Scalar('power')
-derivatives = [dQ0]
-g.add('derivativeTaylorExpansion(0)', I['xyp'] <= power * dQ0['xyp'])
-for i in range(1,order):
-  derivativeSum = db.kTDivM['xl'] * derivatives[-1]['lyq'] * db.star[0]['qp'] + db.kTDivMT['my'] * derivatives[-1]['xmq'] * db.star[1]['qp']
-  derivativeSum = DeduceIndices( Q['xyp'].indices ).visit(derivativeSum)
-  derivativeSum = EquivalentSparsityPattern().visit(derivativeSum)
-  dQ = Tensor('dQ({})'.format(i), qShape, spp=derivativeSum.eqspp())
-  g.add('derivative({})'.format(i), dQ['xyp'] <= derivativeSum)
-  g.add('derivativeTaylorExpansion({})'.format(i), I['xyp'] <= I['xyp'] + power * dQ['xyp'])
-  derivatives.append(dQ)
+dQcur = Tensor('dQcur', qShape)
+dQnext = Tensor('dQnext', qShape)
+g.add('derivative', dQnext['xyp'] <= db.kTDivM['xl'] * dQcur['lyq'] * db.star[0]['qp'] + db.kTDivMT['my'] * dQcur['xmq'] * db.star[1]['qp'])
+g.add('derivativeTaylorExpansion(0)', I['xyp'] <= power * Q['xyp'])
+g.add('derivativeTaylorExpansion(1)', I['xyp'] <= I['xyp'] + power * dQnext['xyp'])
+
 
 
 ## Initialization kernels
@@ -89,6 +87,18 @@ g.add('computeFluxSolver', computeFluxSolver)
 quadrature = Q['xyp'] <= db.quadrature['xl'] * db.quadrature['ym'] * initialCond['lmp']
 g.add('quadrature', quadrature)
 
+class MyPSpaMM(PSpaMM):
+  def preference(self, m, n, k, sparseA, sparseB, transA, transB, alpha, beta):
+    pref = super().preference(m, n, k, sparseA, sparseB, transA, transB, alpha, beta)
+    if pref >= Preference.HIGH and n <= 3:
+      return Preference.HIGHEST
+    return pref
+
+  def blockSize(self, m, n, k):
+    if n <= 3:
+      return {'bm': min(m, 32), 'bn': n, 'bk': 1}
+    return super().blockSize(m, n, k)
+
 # Generate code
-gemmTool = DefaultGeneratorCollection(arch)
+gemmTool = GeneratorCollection([LIBXSMM(arch), MyPSpaMM(arch), MKL(arch)])
 g.generate(cmdLineArgs.outputDir, 'lina', gemmTool)

@@ -4,7 +4,7 @@
 #include "typedefs.h"
 #include "DGMatrices.h"
 
-void computeAder( double                  timestep,
+void computeAder( real                  timestep,
                   GlobalMatrices const&   globalMatrices,
                   LocalMatrices const&    localMatrices,
                   DegreesOfFreedom const& degreesOfFreedom,
@@ -28,7 +28,7 @@ void flopsLocalFlux( unsigned &nonZeroFlops, unsigned &hardwareFlops );
 
 void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
                             LocalMatrices const&    localMatrices,
-                            double*                 timeIntegrated[2][2],
+                            real*                 timeIntegrated[2][2],
                             DegreesOfFreedom        degreesOfFreedom );
 
 void flopsNeighbourFlux( unsigned &nonZeroFlops, unsigned &hardwareFlops );

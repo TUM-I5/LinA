@@ -6,40 +6,46 @@
 
 using namespace lina;
 
-void computeAder( double                  timestep,
+void computeAder( real                  timestep,
                   GlobalMatrices const&   globalMatrices,
                   LocalMatrices const&    localMatrices,
                   DegreesOfFreedom const& degreesOfFreedom,
                   DegreesOfFreedom&       timeIntegrated )
 {
-  double derivativesBuffer[yateto::computeFamilySize<tensor::dQ>()] __attribute__((aligned(ALIGNMENT)));
+  real dQcur[tensor::dQcur::size()] __attribute__((aligned(ALIGNMENT)));
+  real dQnext[tensor::dQnext::size()] __attribute__((aligned(ALIGNMENT)));
 
   kernel::derivative krnl;
   krnl.kTDivM = globalMatrices.kTDivM;
   krnl.kTDivMT = globalMatrices.kTDivMT;
   krnl.star(0) = localMatrices.Astar;
   krnl.star(1) = localMatrices.Bstar;
+  krnl.dQcur = degreesOfFreedom;
+  krnl.dQnext = dQnext;
 
   kernel::derivativeTaylorExpansion intKrnl;
   intKrnl.I = timeIntegrated;
+  intKrnl.Q = degreesOfFreedom;
 
-  krnl.dQ(0) = const_cast<double*>(degreesOfFreedom);
-  intKrnl.dQ(0) = degreesOfFreedom;
-  unsigned offset = 0;
-  for (unsigned i = 1; i < yateto::numFamilyMembers<tensor::dQ>(); ++i) {
-    krnl.dQ(i) = derivativesBuffer + offset;
-    intKrnl.dQ(i) = derivativesBuffer + offset;
-    offset += tensor::dQ::size(i);
-  }
-  
   intKrnl.power = timestep;
   intKrnl.execute0();
-  
-  for (unsigned der = 1; der < CONVERGENCE_ORDER; ++der) {  
-    krnl.execute(der);
+
+  krnl.execute();
+  krnl.dQcur = dQcur;
+  intKrnl.dQnext = krnl.dQnext;
+  intKrnl.power *= timestep / 2;
+  intKrnl.execute1();
+
+  for (unsigned der = 2; der < CONVERGENCE_ORDER; ++der) {
+    real const* tmp = krnl.dQnext;
+    krnl.dQnext = const_cast<real*>(krnl.dQcur);
+    krnl.dQcur = tmp;
+
+    krnl.execute();
 
     intKrnl.power *= timestep / (der+1);
-    intKrnl.execute(der);
+    intKrnl.dQnext = krnl.dQnext;
+    intKrnl.execute1();
   }
 }
 
@@ -51,12 +57,12 @@ void flopsAder( unsigned int        &nonZeroFlops,
 
   // interate over derivatives
   for( unsigned der = 1; der < CONVERGENCE_ORDER; ++der ) {
-    nonZeroFlops  += kernel::derivative::nonZeroFlops(der);
-    hardwareFlops += kernel::derivative::hardwareFlops(der);
+    nonZeroFlops  += kernel::derivative::NonZeroFlops;
+    hardwareFlops += kernel::derivative::HardwareFlops;
 
     // update of time integrated DOFs
-    nonZeroFlops  += kernel::derivativeTaylorExpansion::nonZeroFlops(der);
-    hardwareFlops += kernel::derivativeTaylorExpansion::hardwareFlops(der);
+    nonZeroFlops  += kernel::derivativeTaylorExpansion::nonZeroFlops(1);
+    hardwareFlops += kernel::derivativeTaylorExpansion::hardwareFlops(1);
   }
 }
 
@@ -117,13 +123,14 @@ void flopsLocalFlux( unsigned int        &nonZeroFlops,
 
 void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
                             LocalMatrices const&    localMatrices,
-                            double*                 timeIntegrated[2][2],
+                            real*                 timeIntegrated[2][2],
                             DegreesOfFreedom        degreesOfFreedom )
 {
   kernel::flux krnl;
   krnl.FDivM = globalMatrices.FDivM;
   krnl.FDivMT = globalMatrices.FDivMT;
   krnl.Q = degreesOfFreedom;
+  krnl._prefetch.Q = degreesOfFreedom + tensor::Q::size();
   
   for (unsigned dim = 0; dim < 2; ++dim) {
     for (unsigned side1 = 0; side1 < 2; ++side1) {

@@ -17,7 +17,7 @@ void initialCondition(  GlobalConstants const& globals,
 
 #pragma omp parallel
 {
-  double icBuffer[lina::tensor::initialCond::Size] __attribute__((aligned(ALIGNMENT))) = {};
+  real icBuffer[lina::tensor::initialCond::Size] __attribute__((aligned(ALIGNMENT))) = {};
   auto ic = lina::init::initialCond::view::create(icBuffer);
 
   lina::kernel::quadrature krnl;

@@ -22,8 +22,8 @@ private:
   float*        m_vvel;
   double        m_interval;
   double        m_lastTime;
-  double*       m_subsampleMatrix;
-  double*       m_subsamples;
+  real*         m_subsampleMatrix;
+  real*         m_subsamples;
   int           m_pointsPerDim;
 };
 

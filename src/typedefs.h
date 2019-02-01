@@ -5,7 +5,15 @@
 #include "constants.h"
 #include <generated_code/tensor.h>
 
-typedef double DegreesOfFreedom[lina::tensor::Q::size()];
+#if REAL_SIZE == 8
+typedef double real;
+#elif REAL_SIZE == 4
+typedef float real;
+#else
+#  error REAL_SIZE not supported.
+#endif
+
+typedef real DegreesOfFreedom[lina::tensor::Q::size()];
 
 struct GlobalConstants {
   double hx;
@@ -27,7 +35,7 @@ struct SourceTerm {
   SourceTerm() : x(-1), y(-1) {} // -1 == invalid
   int x;
   int y;
-  double phi[NUMBER_OF_BASIS_FUNCTIONS];
+  real phi[NUMBER_OF_BASIS_FUNCTIONS];
   double (*antiderivative)(double);
   int quantity;
 };
