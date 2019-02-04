@@ -23,6 +23,7 @@ vars.AddVariables(
                 'dnoarch',
                 allowed_values=arch.getArchitectures()
               ),
+  BoolVariable( 'unitTests', 'Build unit tests', False)
 )
 
 # set environment
@@ -113,14 +114,17 @@ env.Append(CXXFLAGS=['--std=c++11'])
 #
 # setup the program name and the build directory
 #
-env['programName'] = 'lina_{}_{}'.format(env['arch'], env['order'])
+programSuffix = '_{}_{}'.format(env['arch'], env['order'])
+env['programName'] = 'lina' + programSuffix
 env['programFile'] = '%s/%s' %(env['buildDir'], env['programName'])
+unitTestProgramFile = os.path.join(env['buildDir'], 'unit_tests' + programSuffix)
 
 # build directory
 env['buildDir'] = '%s/build_%s' %(env['buildDir'], env['programName'])
 
 # get the source files
 env.sourceFiles = []
+env.generatedTestSourceFiles = []
 
 Export('env')
 SConscript('generated_code/SConscript', variant_dir='#/'+env['buildDir'], src_dir='#/', duplicate=0)
@@ -129,3 +133,8 @@ Import('env')
 
 # build standard version
 env.Program('#/'+env['programFile'], env.sourceFiles)
+
+if env['unitTests']: 
+  env.Tool('cxxtest')
+  sourceFiles = filter(lambda sf: os.path.basename(str(sf[0])) != 'main.o', env.sourceFiles)
+  env.CxxTest(unitTestProgramFile, list(sourceFiles) + env.generatedTestSourceFiles)
