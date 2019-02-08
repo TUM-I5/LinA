@@ -22,20 +22,20 @@ numberOfQuadraturePoints = order+1
 numberOfQuantities = 3
 
 qShape = (numberOf1DBasisFunctions, numberOf1DBasisFunctions, numberOfQuantities)
+qShape1 = (numberOf1DBasisFunctions, numberOfQuantities)
 
-Fnames = [tuple('{}({},{})'.format(name, i,j) for name in ['FDivM', 'FDivMT']) for i in range(2) for j in range(2)]
 clones = {
   'kDivM': ['kDivM', 'kDivMT'],
   'kTDivM': ['kTDivM', 'kTDivMT']
 }
-clones.update({a: [a, b] for a, b in Fnames})
-transpose = {'kDivMT', 'kTDivMT'} | set(b for a, b in Fnames)
+transpose = {'kDivMT', 'kTDivMT'}
 alignStride = {'kDivM', 'kTDivM'}
 db = parseJSONMatrixFile('{}/matrices_{}.json'.format(cmdLineArgs.matricesDir, degree), clones, transpose=transpose, alignStride=alignStride)
 db.update( parseJSONMatrixFile('{}/star.json'.format(cmdLineArgs.matricesDir)) )
 memoryLayoutFromFile(cmdLineArgs.memLayout, db, dict())
 
 Q = Tensor('Q', qShape)
+Q1 = Tensor('Q1', qShape1)
 dQ0 = Tensor('dQ(0)', qShape)
 I = Tensor('I', qShape)
 
@@ -54,21 +54,28 @@ g = Generator(arch)
 volume = (Q['xyp'] <= Q['xyp'] + db.kDivM['xl'] * I['lyq'] * db.star[0]['qp'] + db.kDivMT['my'] * I['xmq'] * db.star[1]['qp'])
 g.add('volume', volume)
 
-def flux(dim,side1,side2):
+def evaluateSide(dim,side):
   if dim == 0:
-    return Q['xyp'] <= Q['xyp'] + db.FDivM[side1,side2]['xl'] * I['lyq'] * fluxSolver['qp']
-  return Q['xyp'] <= Q['xyp'] + db.FDivMT[side1,side2]['my'] * I['xmq'] * fluxSolver['qp']
-def fluxPrefetch(dim,side1,side2):
-  if side1 == side2:
-    if dim == 1:
-      return Q if side1 == 1 else I
-  elif side1 != side2:
-    if dim != 1 or side1 != 1:
-      return I
-    else:
-      return Q
-  return None
-g.addFamily('flux', simpleParameterSpace(2,2,2), flux, fluxPrefetch)
+    return Q1['yp'] <= db.F[side]['l'] * I['lyp']
+  return Q1['xp'] <= db.F[side]['m'] * I['xmp']
+
+def flux(dim,side):
+  if dim == 0:
+    return Q['xyp'] <= Q['xyp'] + db.FDivM[side]['x'] * Q1['yq'] * fluxSolver['qp']
+  return Q['xyp'] <= Q['xyp'] + db.FDivM[side]['y'] * Q1['xq'] * fluxSolver['qp']
+#~ def fluxPrefetch(dim,side1,side2):
+  #~ if side1 == side2:
+    #~ if dim == 1:
+      #~ return Q if side1 == 1 else I
+  #~ elif side1 != side2:
+    #~ if dim != 1 or side1 != 1:
+      #~ return I
+    #~ else:
+      #~ return Q
+  #~ return None
+#~ g.addFamily('flux', simpleParameterSpace(2,2,2), flux, fluxPrefetch)
+g.addFamily('evaluateSide', simpleParameterSpace(2,2), evaluateSide)
+g.addFamily('flux', simpleParameterSpace(2,2), flux)
 
 power = Scalar('power')
 dQcur = Tensor('dQcur', qShape)

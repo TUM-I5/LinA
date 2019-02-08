@@ -14,6 +14,7 @@ typedef float real;
 #endif
 
 typedef real DegreesOfFreedom[lina::tensor::Q::size()];
+typedef real EdgeDOFs[lina::tensor::Q1::size()];
 
 struct GlobalConstants {
   double hx;

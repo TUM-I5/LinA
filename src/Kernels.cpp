@@ -91,21 +91,27 @@ void flopsVolume( unsigned int        &nonZeroFlops,
 
 void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
                         LocalMatrices const&    localMatrices,
-                        DegreesOfFreedom const& timeIntegrated,
+                        DegreesOfFreedom        timeIntegrated,
+                        real*                   timeIntegratedEdge[2][2],
                         DegreesOfFreedom        degreesOfFreedom )
 {
   kernel::flux krnl;
   krnl.FDivM = globalMatrices.FDivM;
-  krnl.FDivMT = globalMatrices.FDivMT;
-  krnl.I = timeIntegrated;
   krnl.Q = degreesOfFreedom;
-  krnl._prefetch.I = timeIntegrated + tensor::I::size();
-  krnl._prefetch.Q = degreesOfFreedom + tensor::Q::size();
+  //~ krnl._prefetch.I = timeIntegrated + tensor::I::size();
+  //~ krnl._prefetch.Q = degreesOfFreedom + tensor::Q::size();
+  
+  kernel::evaluateSide evalKrnl;
+  evalKrnl.F = globalMatrices.F;
+  evalKrnl.I = timeIntegrated;
   
   for (unsigned dim = 0; dim < 2; ++dim) {
-    for (unsigned side1 = 0; side1 < 2; ++side1) {
-      krnl.fluxSolver = localMatrices.fluxSolver[dim][side1][side1];
-      krnl.execute(dim, side1, side1);
+    for (unsigned side = 0; side < 2; ++side) {
+      evalKrnl.Q1 = timeIntegratedEdge[dim][side];
+      evalKrnl.execute(dim, side);
+      krnl.Q1 = timeIntegratedEdge[dim][side];
+      krnl.fluxSolver = localMatrices.fluxSolver[dim][side][side];
+      krnl.execute(dim, side);
     }
   }
 }
@@ -113,9 +119,11 @@ void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
 void flopsLocalFlux( unsigned int        &nonZeroFlops,
                      unsigned int        &hardwareFlops ) {
   for (unsigned dim = 0; dim < 2; ++dim) {
-    for (unsigned side1 = 0; side1 < 2; ++side1) {
-      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1, side1);
-      hardwareFlops += kernel::flux::hardwareFlops(dim, side1, side1);
+    for (unsigned side = 0; side < 2; ++side) {
+      nonZeroFlops  += kernel::evaluateSide::nonZeroFlops(dim, side);
+      hardwareFlops += kernel::evaluateSide::hardwareFlops(dim, side);
+      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side);
+      hardwareFlops += kernel::flux::hardwareFlops(dim, side);
     }
   }
 }
@@ -123,24 +131,23 @@ void flopsLocalFlux( unsigned int        &nonZeroFlops,
 
 void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
                             LocalMatrices const&    localMatrices,
-                            real*                 timeIntegrated[2][2],
+                            real*                   timeIntegratedEdge[2][2],
                             DegreesOfFreedom        degreesOfFreedom )
 {
   kernel::flux krnl;
   krnl.FDivM = globalMatrices.FDivM;
-  krnl.FDivMT = globalMatrices.FDivMT;
   krnl.Q = degreesOfFreedom;
-  krnl._prefetch.Q = degreesOfFreedom + tensor::Q::size();
+  //~ krnl._prefetch.Q = degreesOfFreedom + tensor::Q::size();
   
   for (unsigned dim = 0; dim < 2; ++dim) {
     for (unsigned side1 = 0; side1 < 2; ++side1) {
       unsigned side2 = 1-side1;
-      krnl.I = timeIntegrated[dim][side1];
-      if (dim != 1 || side1 != 1) {
-        krnl._prefetch.I = timeIntegrated[dim+(side1+1)/2][(side1+1)%2];
-      }
+      krnl.Q1 = timeIntegratedEdge[dim][side1];
+      //~ if (dim != 1 || side1 != 1) {
+        //~ krnl._prefetch.I = timeIntegrated[dim+(side1+1)/2][(side1+1)%2];
+      //~ }
       krnl.fluxSolver = localMatrices.fluxSolver[dim][side1][side2];
-      krnl.execute(dim, side1, side2);
+      krnl.execute(dim, side1);
     }
   }
 }
@@ -149,9 +156,8 @@ void flopsNeighbourFlux( unsigned int        &nonZeroFlops,
                          unsigned int        &hardwareFlops ) {
   for (unsigned dim = 0; dim < 2; ++dim) {
     for (unsigned side1 = 0; side1 < 2; ++side1) {
-      unsigned side2 = 1-side1;
-      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1, side2);
-      hardwareFlops += kernel::flux::hardwareFlops(dim, side1, side2);
+      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1);
+      hardwareFlops += kernel::flux::hardwareFlops(dim, side1);
     }
   }
 }

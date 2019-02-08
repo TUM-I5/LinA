@@ -21,14 +21,15 @@ void flopsVolume( unsigned &nonZeroFlops, unsigned &hardwareFlops );
 
 void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
                         LocalMatrices const&    localMatrices,
-                        DegreesOfFreedom const& timeIntegrated,
+                        DegreesOfFreedom        timeIntegrated,
+                        real*                   timeIntegratedEdge[2][2],
                         DegreesOfFreedom        degreesOfFreedom );
 
 void flopsLocalFlux( unsigned &nonZeroFlops, unsigned &hardwareFlops );
 
 void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
                             LocalMatrices const&    localMatrices,
-                            real*                 timeIntegrated[2][2],
+                            real*                 timeIntegratedEdge[2][2],
                             DegreesOfFreedom        degreesOfFreedom );
 
 void flopsNeighbourFlux( unsigned &nonZeroFlops, unsigned &hardwareFlops );
