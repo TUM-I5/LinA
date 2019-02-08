@@ -63,17 +63,7 @@ def flux(dim,side):
   if dim == 0:
     return Q['xyp'] <= Q['xyp'] + db.FDivM[side]['x'] * Q1['yq'] * fluxSolver['qp']
   return Q['xyp'] <= Q['xyp'] + db.FDivM[side]['y'] * Q1['xq'] * fluxSolver['qp']
-#~ def fluxPrefetch(dim,side1,side2):
-  #~ if side1 == side2:
-    #~ if dim == 1:
-      #~ return Q if side1 == 1 else I
-  #~ elif side1 != side2:
-    #~ if dim != 1 or side1 != 1:
-      #~ return I
-    #~ else:
-      #~ return Q
-  #~ return None
-#~ g.addFamily('flux', simpleParameterSpace(2,2,2), flux, fluxPrefetch)
+
 g.addFamily('evaluateSide', simpleParameterSpace(2,2), evaluateSide)
 g.addFamily('flux', simpleParameterSpace(2,2), flux)
 
