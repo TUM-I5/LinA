@@ -11,6 +11,8 @@ cmdLineParser.add_argument('--outputDir')
 cmdLineParser.add_argument('--arch')
 cmdLineParser.add_argument('--order')
 cmdLineParser.add_argument('--memLayout')
+cmdLineParser.add_argument('--libxsmm', action='store_true')
+cmdLineParser.add_argument('--pspamm', action='store_true')
 cmdLineArgs = cmdLineParser.parse_args()
 
 arch = useArchitectureIdentifiedBy(cmdLineArgs.arch)
@@ -99,5 +101,11 @@ class MyPSpaMM(PSpaMM):
     return super().blockSize(m, n, k)
 
 # Generate code
-gemmTool = GeneratorCollection([LIBXSMM(arch), MyPSpaMM(arch), MKL(arch)])
+generators = list()
+if cmdLineArgs.libxsmm:
+  generators.append(LIBXSMM(arch))
+if cmdLineArgs.pspamm:
+  generators.append(MyPSpaMM(arch))
+generators.append(MKL(arch))
+gemmTool = GeneratorCollection(generators)
 g.generate(cmdLineArgs.outputDir, 'lina', gemmTool)

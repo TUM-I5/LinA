@@ -23,7 +23,10 @@ vars.AddVariables(
                 'dnoarch',
                 allowed_values=arch.getArchitectures()
               ),
-  BoolVariable( 'unitTests', 'Build unit tests', False)
+  BoolVariable( 'unitTests', 'Build unit tests', False),
+  BoolVariable( 'libxsmm', 'Generate kernels with LIBXSMM.', True),
+  BoolVariable( 'pspamm', 'Generate kernels with PSpaMM.', True),
+  BoolVariable( 'sparse', 'Use sparse memory layout.', True)
 )
 
 # set environment
@@ -114,7 +117,13 @@ env.Append(CXXFLAGS=['--std=c++11'])
 #
 # setup the program name and the build directory
 #
-programSuffix = '_{}_{}'.format(env['arch'], env['order'])
+generators = list()
+if env['libxsmm']:
+  generators.append('x')
+if env['pspamm']:
+  generators.append('p')
+ml = 'sp' if env['sparse'] else 'dn'
+programSuffix = '_{}_{}_{}_{}'.format(env['arch'], ''.join(generators), ml, env['order'])
 env['programName'] = 'lina' + programSuffix
 env['programFile'] = '%s/%s' %(env['buildDir'], env['programName'])
 unitTestProgramFile = os.path.join(env['buildDir'], 'unit_tests' + programSuffix)
