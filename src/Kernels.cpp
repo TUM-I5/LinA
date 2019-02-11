@@ -92,13 +92,8 @@ void flopsVolume( unsigned int        &nonZeroFlops,
 void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
                         LocalMatrices const&    localMatrices,
                         DegreesOfFreedom        timeIntegrated,
-                        real*                   timeIntegratedEdge[2][2],
-                        DegreesOfFreedom        degreesOfFreedom )
+                        real*                   timeIntegratedEdge[2][2] )
 {
-  kernel::flux krnl;
-  krnl.FDivM = globalMatrices.FDivM;
-  krnl.Q = degreesOfFreedom;
-  
   kernel::evaluateSide evalKrnl;
   evalKrnl.F = globalMatrices.F;
   evalKrnl.I = timeIntegrated;
@@ -107,9 +102,6 @@ void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
     for (unsigned side = 0; side < 2; ++side) {
       evalKrnl.Q1 = timeIntegratedEdge[dim][side];
       evalKrnl.execute(dim, side);
-      krnl.Q1 = timeIntegratedEdge[dim][side];
-      krnl.fluxSolver = localMatrices.fluxSolver[dim][side][side];
-      krnl.execute(dim, side);
     }
   }
 }
@@ -120,8 +112,6 @@ void flopsLocalFlux( unsigned int        &nonZeroFlops,
     for (unsigned side = 0; side < 2; ++side) {
       nonZeroFlops  += kernel::evaluateSide::nonZeroFlops(dim, side);
       hardwareFlops += kernel::evaluateSide::hardwareFlops(dim, side);
-      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side);
-      hardwareFlops += kernel::flux::hardwareFlops(dim, side);
     }
   }
 }
@@ -129,7 +119,7 @@ void flopsLocalFlux( unsigned int        &nonZeroFlops,
 
 void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
                             LocalMatrices const&    localMatrices,
-                            real*                   timeIntegratedEdge[2][2],
+                            real*                   timeIntegratedEdge[2][2][2],
                             DegreesOfFreedom        degreesOfFreedom )
 {
   kernel::flux krnl;
@@ -139,8 +129,10 @@ void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
   for (unsigned dim = 0; dim < 2; ++dim) {
     for (unsigned side1 = 0; side1 < 2; ++side1) {
       unsigned side2 = 1-side1;
-      krnl.Q1 = timeIntegratedEdge[dim][side1];
-      krnl.fluxSolver = localMatrices.fluxSolver[dim][side1][side2];
+      krnl.Q1 = timeIntegratedEdge[dim][side1][0];
+      krnl.Q1Neighbour = timeIntegratedEdge[dim][side1][1];
+      krnl.fluxSolver = localMatrices.fluxSolver[dim][side1][side1];
+      krnl.fluxSolverNeighbour = localMatrices.fluxSolver[dim][side1][side2];
       krnl.execute(dim, side1);
     }
   }

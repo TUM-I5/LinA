@@ -36,6 +36,7 @@ memoryLayoutFromFile(cmdLineArgs.memLayout, db, dict())
 
 Q = Tensor('Q', qShape)
 Q1 = Tensor('Q1', qShape1)
+Q1Neighbour = Tensor('Q1Neighbour', qShape1)
 dQ0 = Tensor('dQ(0)', qShape)
 I = Tensor('I', qShape)
 
@@ -43,6 +44,7 @@ initialCond = Tensor('initialCond', (numberOfQuadraturePoints, numberOfQuadratur
 
 # Flux solver
 fluxSolver = Tensor('fluxSolver', (numberOfQuantities, numberOfQuantities))
+fluxSolverNeighbour = Tensor('fluxSolverNeighbour', (numberOfQuantities, numberOfQuantities))
 T = Tensor('T', (numberOfQuantities, numberOfQuantities))
 TT = Tensor('TT', (numberOfQuantities, numberOfQuantities))
 Apm = Tensor('Apm', (numberOfQuantities, numberOfQuantities))
@@ -61,8 +63,8 @@ def evaluateSide(dim,side):
 
 def flux(dim,side):
   if dim == 0:
-    return Q['xyp'] <= Q['xyp'] + db.FDivM[side]['x'] * Q1['yq'] * fluxSolver['qp']
-  return Q['xyp'] <= Q['xyp'] + db.FDivM[side]['y'] * Q1['xq'] * fluxSolver['qp']
+    return Q['xyp'] <= Q['xyp'] + db.FDivM[side]['x'] * (Q1['yq'] * fluxSolver['qp'] + Q1Neighbour['yq'] * fluxSolverNeighbour['qp'])
+  return Q['xyp'] <= Q['xyp'] + db.FDivM[side]['y'] * (Q1['xq'] * fluxSolver['qp'] + Q1Neighbour['xq'] * fluxSolverNeighbour['qp'])
 
 g.addFamily('evaluateSide', simpleParameterSpace(2,2), evaluateSide)
 g.addFamily('flux', simpleParameterSpace(2,2), flux)

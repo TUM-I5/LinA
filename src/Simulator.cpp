@@ -106,7 +106,7 @@ int simulate( GlobalConstants const&  globals,
               timeIntegratedEdge[dim][side] = timeIntegratedEdges[dim][side]->get(x, y);
             }
           }
-          computeLocalFlux(globalMatrices, localMatrices, timeIntegrated, timeIntegratedEdge, degreesOfFreedom);
+          computeLocalFlux(globalMatrices, localMatrices, timeIntegrated, timeIntegratedEdge);
         }
       }
     }
@@ -117,12 +117,13 @@ int simulate( GlobalConstants const&  globals,
         LocalMatrices& localMatrices = localMatricesGrid.get(x, y);
         DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(x, y);
         
-        real* timeIntegratedEdge[2][2];
+        real* timeIntegratedEdge[2][2][2];
         for (int dim = 0; dim < 2; ++dim) {
           for (int side = 0; side < 2; ++side) {
             int xn = x + (1-dim)*(2*side-1);
             int yn = y +    dim *(2*side-1);
-            timeIntegratedEdge[dim][side] = timeIntegratedEdges[dim][1-side]->get(xn, yn);
+            timeIntegratedEdge[dim][side][0] = timeIntegratedEdges[dim][side]->get(x, y);
+            timeIntegratedEdge[dim][side][1] = timeIntegratedEdges[dim][1-side]->get(xn, yn);
           }
         }
 
