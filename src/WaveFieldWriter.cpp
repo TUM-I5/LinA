@@ -8,6 +8,7 @@
 
 #include "basisfunctions.h"
 #include "GEMM.h"
+#include <generated_code/init.h>
 
 WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants const& globals, double interval, int pointsPerDim)
   : m_step(0), m_interval(interval), m_lastTime(-std::numeric_limits<double>::max()), m_pointsPerDim(pointsPerDim)
@@ -18,10 +19,10 @@ WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants co
             << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\">" << std::endl
             << "<Xdmf Version=\"2.0\">" << std::endl
             << "  <Domain>" << std::endl
-            << "    <Topology TopologyType=\"2DCoRectMesh\" Dimensions=\"" << m_pointsPerDim * globals.Y << " " << m_pointsPerDim * globals.X << "\"/>" << std::endl
-            << "    <Geometry GeometryType=\"ORIGIN_DXDY\">" << std::endl
-            << "      <DataItem Format=\"XML\" Dimensions=\"2\">0.0 0.0</DataItem>" << std::endl
-            << "      <DataItem Format=\"XML\" Dimensions=\"2\">" << globals.hy / m_pointsPerDim << " " << globals.hx / m_pointsPerDim << "</DataItem>" << std::endl
+            << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\"" << m_pointsPerDim * globals.Z << " " << m_pointsPerDim * globals.Y << " " << m_pointsPerDim * globals.X << "\"/>" << std::endl
+            << "    <Geometry GeometryType=\"ORIGIN_DXDYDZ\">" << std::endl
+            << "      <DataItem Format=\"XML\" Dimensions=\"3\">0.0 0.0 0.0</DataItem>" << std::endl
+            << "      <DataItem Format=\"XML\" Dimensions=\"3\">" << globals.hz / m_pointsPerDim << " " << globals.hy / m_pointsPerDim << " " << globals.hx / m_pointsPerDim << "</DataItem>" << std::endl
             << "    </Geometry>" << std::endl
             << "    <Grid Name=\"TimeSeries\" GridType=\"Collection\" CollectionType=\"Temporal\">" << std::endl;
 
@@ -29,6 +30,7 @@ WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants co
     m_pressure = new float[gridSize];
     m_uvel = new float[gridSize];
     m_vvel = new float[gridSize];
+    m_wvel = new float[gridSize];
     
     std::size_t lastFound = 0;
     std::size_t found;
@@ -91,18 +93,23 @@ void WaveFieldWriter::writeTimestep(double time, Grid<DegreesOfFreedom>& degrees
             << "        <Geometry Reference=\"/Xdmf/Domain/Geometry[1]\"/>" << std::endl
             << "        <Time Value=\"" << time << "\"/>" << std::endl
             << "        <Attribute Name=\"pressure\" Center=\"Node\">" << std::endl
-            << "          <DataItem Format=\"Binary\" DataType=\"Float\" Precision=\"4\" Dimensions=\"" << m_pointsPerDim * degreesOfFreedomGrid.Y() << " " << m_pointsPerDim * degreesOfFreedomGrid.X() << "\">" << std::endl
+            << "          <DataItem Format=\"Binary\" DataType=\"Float\" Precision=\"4\" Dimensions=\"" << m_pointsPerDim * degreesOfFreedomGrid.Z() << " " << m_pointsPerDim * degreesOfFreedomGrid.Y() << " " << m_pointsPerDim * degreesOfFreedomGrid.X() << "\">" << std::endl
             << "            " << pressureFileName.str() << std::endl
             << "          </DataItem>" << std::endl
             << "        </Attribute>" << std::endl
             << "        <Attribute Name=\"u\" Center=\"Node\">" << std::endl
-            << "          <DataItem Format=\"Binary\" DataType=\"Float\" Precision=\"4\" Dimensions=\"" << m_pointsPerDim * degreesOfFreedomGrid.Y() << " " << m_pointsPerDim * degreesOfFreedomGrid.X() << "\">" << std::endl
+            << "          <DataItem Format=\"Binary\" DataType=\"Float\" Precision=\"4\" Dimensions=\"" << m_pointsPerDim * degreesOfFreedomGrid.Z() << " " << m_pointsPerDim * degreesOfFreedomGrid.Y() << " " << m_pointsPerDim * degreesOfFreedomGrid.X() << "\">" << std::endl
             << "            " << uvelFileName.str() << std::endl
             << "          </DataItem>" << std::endl
             << "       </Attribute>" << std::endl
             << "        <Attribute Name=\"v\" Center=\"Node\">" << std::endl
-            << "          <DataItem Format=\"Binary\" DataType=\"Float\" Precision=\"4\" Dimensions=\"" << m_pointsPerDim * degreesOfFreedomGrid.Y() << " " << m_pointsPerDim * degreesOfFreedomGrid.X() << "\">" << std::endl
+            << "          <DataItem Format=\"Binary\" DataType=\"Float\" Precision=\"4\" Dimensions=\"" << m_pointsPerDim * degreesOfFreedomGrid.Z() << " " << m_pointsPerDim * degreesOfFreedomGrid.Y() << " " << m_pointsPerDim * degreesOfFreedomGrid.X() << "\">" << std::endl
             << "            " << vvelFileName.str() << std::endl
+            << "          </DataItem>" << std::endl
+            << "        </Attribute>" << std::endl
+            << "        <Attribute Name=\"w\" Center=\"Node\">" << std::endl
+            << "          <DataItem Format=\"Binary\" DataType=\"Float\" Precision=\"4\" Dimensions=\"" << m_pointsPerDim * degreesOfFreedomGrid.Z() << " " << m_pointsPerDim * degreesOfFreedomGrid.Y() << " " << m_pointsPerDim * degreesOfFreedomGrid.X() << "\">" << std::endl
+            << "            " << wvelFileName.str() << std::endl
             << "          </DataItem>" << std::endl
             << "        </Attribute>" << std::endl
             << "      </Grid>" << std::endl;
@@ -111,6 +118,19 @@ void WaveFieldWriter::writeTimestep(double time, Grid<DegreesOfFreedom>& degrees
     for (int z = 0; z < degreesOfFreedomGrid.Z(); ++z) {
       for (int y = 0; y < degreesOfFreedomGrid.Y(); ++y) {
         for (int x = 0; x < degreesOfFreedomGrid.X(); ++x) {
+          DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(x, y, z);
+          auto dofs = lina::init::Q::view::create(degreesOfFreedom);
+          
+          int xsub, ysub, zsub;
+          xsub = ysub = zsub = 0;
+          unsigned subIndex = zsub * m_pointsPerDim * m_pointsPerDim + ysub * m_pointsPerDim + xsub;
+          unsigned targetIndex =   (z*m_pointsPerDim+zsub)*m_pointsPerDim*m_pointsPerDim*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y()
+                                 + (y*m_pointsPerDim+ysub)*m_pointsPerDim*degreesOfFreedomGrid.X()
+                                 + (x*m_pointsPerDim+xsub);
+          m_pressure[targetIndex] = dofs(0,0,0,0);
+          m_uvel[targetIndex] = dofs(0,0,0,1);
+          m_vvel[targetIndex] = dofs(0,0,0,2);
+          m_wvel[targetIndex] = dofs(0,0,0,3);
           /*DGEMM(  subGridSize, NUMBER_OF_QUANTITIES, NUMBER_OF_BASIS_FUNCTIONS,
                   1.0, m_subsampleMatrix, subGridSize,
                   degreesOfFreedomGrid.get(x, y), NUMBER_OF_BASIS_FUNCTIONS,
@@ -130,20 +150,22 @@ void WaveFieldWriter::writeTimestep(double time, Grid<DegreesOfFreedom>& degrees
       }
     }
     
+    size_t size = subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y()*degreesOfFreedomGrid.Z();
+    
     FILE* pressureFile = fopen((m_dirName + pressureFileName.str()).c_str(), "wb");
-    fwrite(m_pressure, sizeof(float), subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y(), pressureFile);
+    fwrite(m_pressure, sizeof(float), size, pressureFile);
     fclose(pressureFile);
     
     FILE* uFile = fopen((m_dirName + uvelFileName.str()).c_str(), "wb");
-    fwrite(m_uvel, sizeof(float), subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y()*degreesOfFreedomGrid.Z(), uFile);
+    fwrite(m_uvel, sizeof(float), size, uFile);
     fclose(uFile);
     
     FILE* vFile = fopen((m_dirName + vvelFileName.str()).c_str(), "wb");
-    fwrite(m_vvel, sizeof(float), subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y()*degreesOfFreedomGrid.Z(), vFile);
+    fwrite(m_vvel, sizeof(float), size, vFile);
     fclose(vFile);
     
     FILE* wFile = fopen((m_dirName + wvelFileName.str()).c_str(), "wb");
-    fwrite(m_wvel, sizeof(float), subGridSize*degreesOfFreedomGrid.X()*degreesOfFreedomGrid.Y()*degreesOfFreedomGrid.Z(), wFile);
+    fwrite(m_wvel, sizeof(float), size, wFile);
     fclose(wFile);
     
     ++m_step;

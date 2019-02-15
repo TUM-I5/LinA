@@ -24,7 +24,7 @@ private:
 struct LocalMatrices {
   real Astar[lina::tensor::star::size(0)];
   real Bstar[lina::tensor::star::size(1)];
-  real Cstar[lina::tensor::star::size(1)];
+  real Cstar[lina::tensor::star::size(2)];
   real fluxSolver[3][2][2][lina::tensor::fluxSolver::size()];
 };
 

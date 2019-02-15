@@ -185,7 +185,8 @@ int main(int argc, char** argv)
   
   globals.maxTimestep = determineTimestep(globals.hx, globals.hy, globals.hz, materialGrid);
   
-  WaveFieldWriter waveFieldWriter(wfwBasename, globals, wfwInterval, static_cast<int>(ceil( sqrt(NUMBER_OF_BASIS_FUNCTIONS) )));
+  //~ WaveFieldWriter waveFieldWriter(wfwBasename, globals, wfwInterval, static_cast<int>(ceil( sqrt(NUMBER_OF_BASIS_FUNCTIONS) )));
+  WaveFieldWriter waveFieldWriter(wfwBasename, globals, wfwInterval, 1);
 
   int steps = simulate(globals, globalMatrices, materialGrid, degreesOfFreedomGrid, waveFieldWriter, sourceterm);
   
