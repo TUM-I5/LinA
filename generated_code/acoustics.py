@@ -82,7 +82,6 @@ g.add('derivative', dQnext['xyzp'] <= db.kTDivM['xl'] * dQcur['lyzq'] * db.star[
 g.add('derivativeTaylorExpansion(0)', I['xyzp'] <= power * Q['xyzp'])
 g.add('derivativeTaylorExpansion(1)', I['xyzp'] <= I['xyzp'] + power * dQnext['xyzp'])
 
-
 ## Initialization kernels
 fluxScale = Scalar('fluxScale')
 computeFluxSolver = fluxSolver['ij'] <= fluxScale * T['ik'] * Apm['kl'] * TT['lj']
@@ -94,7 +93,7 @@ g.add('quadrature', quadrature)
 class MyPSpaMM(PSpaMM):
   def preference(self, m, n, k, sparseA, sparseB, transA, transB, alpha, beta):
     pref = super().preference(m, n, k, sparseA, sparseB, transA, transB, alpha, beta)
-    if pref >= Preference.HIGH and n <= 3:
+    if pref >= Preference.HIGH and n <= 4:
       return Preference.HIGHEST
     return pref
 
