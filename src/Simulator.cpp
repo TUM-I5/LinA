@@ -99,7 +99,7 @@ int simulate( GlobalConstants const&  globals,
     #pragma omp parallel
     {
       DegreesOfFreedom timeIntegrated __attribute((aligned(ALIGNMENT)));
-      #pragma omp parallel for collapse(3)
+      #pragma omp for collapse(3)
       for (int z = 0; z < globals.Z; ++z) {
         for (int y = 0; y < globals.Y; ++y) {
           for (int x = 0; x < globals.X; ++x) {
