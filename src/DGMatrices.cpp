@@ -4,30 +4,30 @@
 #include <iostream>
 
 GlobalMatrices::GlobalMatrices() {
-  size_t alignedReals = yateto::alignedReals<double>(ALIGNMENT);
+  size_t alignedReals = yateto::alignedReals<real>(ALIGNMENT);
   unsigned globalMatrixMemSize = 0;
   globalMatrixMemSize += yateto::alignedUpper(lina::init::kDivM::size(), alignedReals);
   globalMatrixMemSize += yateto::alignedUpper(lina::init::kDivMT::size(), alignedReals);
   globalMatrixMemSize += yateto::alignedUpper(lina::init::kTDivM::size(), alignedReals);
   globalMatrixMemSize += yateto::alignedUpper(lina::init::kTDivMT::size(), alignedReals);
   globalMatrixMemSize += yateto::computeFamilySize<lina::init::FDivM>(alignedReals);
-  globalMatrixMemSize += yateto::computeFamilySize<lina::init::FDivMT>(alignedReals);
+  globalMatrixMemSize += yateto::computeFamilySize<lina::init::F>(alignedReals);
   globalMatrixMemSize += yateto::alignedUpper(lina::init::quadrature::size(), alignedReals);
 
-  int err = posix_memalign(reinterpret_cast<void**>(&m_matrixMem), ALIGNMENT, globalMatrixMemSize * sizeof(double));
+  int err = posix_memalign(reinterpret_cast<void**>(&m_matrixMem), ALIGNMENT, globalMatrixMemSize * sizeof(real));
   if (err) {
-    std::cerr << "Failed to allocate " << globalMatrixMemSize * sizeof(double) << " bytes in " << __FILE__ << std::endl;
+    std::cerr << "Failed to allocate " << globalMatrixMemSize * sizeof(real) << " bytes in " << __FILE__ << std::endl;
     exit(EXIT_FAILURE);
   }
 
-  double* mem = m_matrixMem;
-  yateto::copyTensorToMemAndSetPtr<lina::init::kDivM,   double>(mem, kDivM, ALIGNMENT);
-  yateto::copyTensorToMemAndSetPtr<lina::init::kDivMT,  double>(mem, kDivMT, ALIGNMENT);
-  yateto::copyTensorToMemAndSetPtr<lina::init::kTDivM,  double>(mem, kTDivM, ALIGNMENT);
-  yateto::copyTensorToMemAndSetPtr<lina::init::kTDivMT, double>(mem, kTDivMT, ALIGNMENT);
-  yateto::copyFamilyToMemAndSetPtr<lina::init::FDivM,   double>(mem, FDivM, ALIGNMENT);
-  yateto::copyFamilyToMemAndSetPtr<lina::init::FDivMT,  double>(mem, FDivMT, ALIGNMENT);
-  yateto::copyTensorToMemAndSetPtr<lina::init::quadrature,   double>(mem, quadrature, ALIGNMENT);
+  real* mem = m_matrixMem;
+  yateto::copyTensorToMemAndSetPtr<lina::init::kDivM,   real>(mem, kDivM, ALIGNMENT);
+  yateto::copyTensorToMemAndSetPtr<lina::init::kDivMT,  real>(mem, kDivMT, ALIGNMENT);
+  yateto::copyTensorToMemAndSetPtr<lina::init::kTDivM,  real>(mem, kTDivM, ALIGNMENT);
+  yateto::copyTensorToMemAndSetPtr<lina::init::kTDivMT, real>(mem, kTDivMT, ALIGNMENT);
+  yateto::copyFamilyToMemAndSetPtr<lina::init::FDivM,   real>(mem, FDivM, ALIGNMENT);
+  yateto::copyFamilyToMemAndSetPtr<lina::init::F,       real>(mem, F, ALIGNMENT);
+  yateto::copyTensorToMemAndSetPtr<lina::init::quadrature,   real>(mem, quadrature, ALIGNMENT);
 
   for (unsigned i = 0; i < lina::init::kTDivM::size(); ++i) {
     kTDivM[i] *= -1.0;

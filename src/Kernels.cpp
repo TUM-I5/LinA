@@ -6,13 +6,14 @@
 
 using namespace lina;
 
-void computeAder( double                  timestep,
+void computeAder( real                  timestep,
                   GlobalMatrices const&   globalMatrices,
                   LocalMatrices const&    localMatrices,
                   DegreesOfFreedom const& degreesOfFreedom,
                   DegreesOfFreedom&       timeIntegrated )
 {
-  double derivativesBuffer[yateto::computeFamilySize<tensor::dQ>()] __attribute__((aligned(ALIGNMENT)));
+  real dQcur[tensor::dQcur::size()] __attribute__((aligned(ALIGNMENT)));
+  real dQnext[tensor::dQnext::size()] __attribute__((aligned(ALIGNMENT)));
 
   kernel::derivative krnl;
   krnl.kTDivM = globalMatrices.kTDivM;
@@ -20,27 +21,32 @@ void computeAder( double                  timestep,
   krnl.star(0) = localMatrices.Astar;
   krnl.star(1) = localMatrices.Bstar;
   krnl.star(2) = localMatrices.Cstar;
+  krnl.dQcur = degreesOfFreedom;
+  krnl.dQnext = dQnext;
 
   kernel::derivativeTaylorExpansion intKrnl;
   intKrnl.I = timeIntegrated;
+  intKrnl.Q = degreesOfFreedom;
 
-  krnl.dQ(0) = const_cast<double*>(degreesOfFreedom);
-  intKrnl.dQ(0) = degreesOfFreedom;
-  unsigned offset = 0;
-  for (unsigned i = 1; i < yateto::numFamilyMembers<tensor::dQ>(); ++i) {
-    krnl.dQ(i) = derivativesBuffer + offset;
-    intKrnl.dQ(i) = derivativesBuffer + offset;
-    offset += tensor::dQ::size(i);
-  }
-  
   intKrnl.power = timestep;
   intKrnl.execute0();
-  
-  for (unsigned der = 1; der < CONVERGENCE_ORDER; ++der) {  
-    krnl.execute(der);
+
+  krnl.execute();
+  krnl.dQcur = dQcur;
+  intKrnl.dQnext = krnl.dQnext;
+  intKrnl.power *= timestep / 2;
+  intKrnl.execute1();
+
+  for (int der = 2; der < CONVERGENCE_ORDER; ++der) {
+    real const* tmp = krnl.dQnext;
+    krnl.dQnext = const_cast<real*>(krnl.dQcur);
+    krnl.dQcur = tmp;
+
+    krnl.execute();
 
     intKrnl.power *= timestep / (der+1);
-    intKrnl.execute(der);
+    intKrnl.dQnext = krnl.dQnext;
+    intKrnl.execute1();
   }
 }
 
@@ -51,13 +57,13 @@ void flopsAder( unsigned int        &nonZeroFlops,
   hardwareFlops += kernel::derivativeTaylorExpansion::hardwareFlops(0);
 
   // interate over derivatives
-  for( unsigned der = 1; der < CONVERGENCE_ORDER; ++der ) {
-    nonZeroFlops  += kernel::derivative::nonZeroFlops(der);
-    hardwareFlops += kernel::derivative::hardwareFlops(der);
+  for (int der = 1; der < CONVERGENCE_ORDER; ++der ) {
+    nonZeroFlops  += kernel::derivative::NonZeroFlops;
+    hardwareFlops += kernel::derivative::HardwareFlops;
 
     // update of time integrated DOFs
-    nonZeroFlops  += kernel::derivativeTaylorExpansion::nonZeroFlops(der);
-    hardwareFlops += kernel::derivativeTaylorExpansion::hardwareFlops(der);
+    nonZeroFlops  += kernel::derivativeTaylorExpansion::nonZeroFlops(1);
+    hardwareFlops += kernel::derivativeTaylorExpansion::hardwareFlops(1);
   }
 }
 
@@ -87,31 +93,27 @@ void flopsVolume( unsigned int        &nonZeroFlops,
 
 void computeLocalFlux(  GlobalMatrices const&   globalMatrices,
                         LocalMatrices const&    localMatrices,
-                        DegreesOfFreedom const& timeIntegrated,
-                        DegreesOfFreedom        degreesOfFreedom )
+                        DegreesOfFreedom        timeIntegrated,
+                        real*                   timeIntegratedEdge[3][2] )
 {
-  kernel::flux krnl;
-  krnl.FDivM = globalMatrices.FDivM;
-  krnl.FDivMT = globalMatrices.FDivMT;
-  krnl.I = timeIntegrated;
-  krnl.Q = degreesOfFreedom;
-  krnl._prefetch.I = timeIntegrated + tensor::I::size();
-  krnl._prefetch.Q = degreesOfFreedom + tensor::Q::size();
+  kernel::evaluateSide evalKrnl;
+  evalKrnl.F = globalMatrices.F;
+  evalKrnl.I = timeIntegrated;
   
-  for (unsigned dim = 0; dim < 3; ++dim) {
-    for (unsigned side1 = 0; side1 < 2; ++side1) {
-      krnl.fluxSolver = localMatrices.fluxSolver[dim][side1][side1];
-      krnl.execute(dim, side1, side1);
+  for (int dim = 0; dim < 3; ++dim) {
+    for (int side = 0; side < 2; ++side) {
+      evalKrnl.Q1 = timeIntegratedEdge[dim][side];
+      evalKrnl.execute(dim, side);
     }
   }
 }
 
 void flopsLocalFlux( unsigned int        &nonZeroFlops,
                      unsigned int        &hardwareFlops ) {
-  for (unsigned dim = 0; dim < 3; ++dim) {
-    for (unsigned side1 = 0; side1 < 2; ++side1) {
-      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1, side1);
-      hardwareFlops += kernel::flux::hardwareFlops(dim, side1, side1);
+  for (int dim = 0; dim < 3; ++dim) {
+    for (int side = 0; side < 2; ++side) {
+      nonZeroFlops  += kernel::evaluateSide::nonZeroFlops(dim, side);
+      hardwareFlops += kernel::evaluateSide::hardwareFlops(dim, side);
     }
   }
 }
@@ -119,23 +121,21 @@ void flopsLocalFlux( unsigned int        &nonZeroFlops,
 
 void computeNeighbourFlux(  GlobalMatrices const&   globalMatrices,
                             LocalMatrices const&    localMatrices,
-                            double*                 timeIntegrated[3][2],
+                            real*                   timeIntegratedEdge[3][2][2],
                             DegreesOfFreedom        degreesOfFreedom )
 {
   kernel::flux krnl;
   krnl.FDivM = globalMatrices.FDivM;
-  krnl.FDivMT = globalMatrices.FDivMT;
   krnl.Q = degreesOfFreedom;
   
-  for (unsigned dim = 0; dim < 3; ++dim) {
-    for (unsigned side1 = 0; side1 < 2; ++side1) {
-      unsigned side2 = 1-side1;
-      krnl.I = timeIntegrated[dim][side1];
-      if (dim != 1 || side1 != 1) {
-        //krnl._prefetch.I = timeIntegrated[dim+(side1+1)/2][(side1+1)%2];
-      }
-      krnl.fluxSolver = localMatrices.fluxSolver[dim][side1][side2];
-      krnl.execute(dim, side1, side2);
+  for (int dim = 0; dim < 3; ++dim) {
+    for (int side1 = 0; side1 < 2; ++side1) {
+      int side2 = 1-side1;
+      krnl.Q1 = timeIntegratedEdge[dim][side1][0];
+      krnl.Q1Neighbour = timeIntegratedEdge[dim][side1][1];
+      krnl.fluxSolver = localMatrices.fluxSolver[dim][side1][side1];
+      krnl.fluxSolverNeighbour = localMatrices.fluxSolver[dim][side1][side2];
+      krnl.execute(dim, side1);
     }
   }
 }
@@ -144,10 +144,8 @@ void flopsNeighbourFlux( unsigned int        &nonZeroFlops,
                          unsigned int        &hardwareFlops ) {
   for (unsigned dim = 0; dim < 3; ++dim) {
     for (unsigned side1 = 0; side1 < 2; ++side1) {
-      unsigned side2 = 1-side1;
-      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1, side2);
-      hardwareFlops += kernel::flux::hardwareFlops(dim, side1, side2);
+      nonZeroFlops  += kernel::flux::nonZeroFlops(dim, side1);
+      hardwareFlops += kernel::flux::hardwareFlops(dim, side1);
     }
   }
 }
-

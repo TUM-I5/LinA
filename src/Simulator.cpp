@@ -43,7 +43,12 @@ int simulate( GlobalConstants const&  globals,
   std::cout << "Non-zero flops / element: " << nonZeroFlops << std::endl;
   std::cout << "Hardware flops / element: " << hardwareFlops << std::endl;
 
-  Grid<DegreesOfFreedom> timeIntegratedGrid(globals.X, globals.Y, globals.Z);
+  Grid<EdgeDOFs>* timeIntegratedEdges[3][2];
+  for (int dim = 0; dim < 3; ++dim) {
+    for (int side = 0; side < 2; ++side) {
+      timeIntegratedEdges[dim][side] = new Grid<EdgeDOFs>(globals.X, globals.Y, globals.Z);
+    }
+  }
 
   Grid<LocalMatrices> localMatricesGrid(globals.X, globals.Y, globals.Z);
   #pragma omp parallel for collapse(3)
@@ -56,10 +61,10 @@ int simulate( GlobalConstants const&  globals,
         computeJacobian<1>(material, localMatrices.Bstar, 1.0 / globals.hy);
         computeJacobian<2>(material, localMatrices.Cstar, 1.0 / globals.hz);
 
-        double Apm[lina::tensor::Apm::size()]; 
+        real Apm[lina::tensor::Apm::size()]; 
         double h[3] = {globals.hx, globals.hy, globals.hz};
-        for (unsigned dim = 0; dim < 3; ++dim) {
-          for (unsigned side1 = 0; side1 < 2; ++side1) {
+        for (int dim = 0; dim < 3; ++dim) {
+          for (int side1 = 0; side1 < 2; ++side1) {
             int off = 2*side1-1;
             int xn = x + ((dim == 0) ? off : 0);
             int yn = y + ((dim == 1) ? off : 0);
@@ -67,7 +72,7 @@ int simulate( GlobalConstants const&  globals,
             double nx = (dim == 0) ? (2.0*side1-1.0) : 0.0;
             double ny = (dim == 1) ? (2.0*side1-1.0) : 0.0;
             double nz = (dim == 2) ? (2.0*side1-1.0) : 0.0;
-            for (unsigned side2 = 0; side2 < 2; ++side2) {
+            for (int side2 = 0; side2 < 2; ++side2) {
               if (side1 != side2) {
                 computeAminus(material, materialGrid.get(xn, yn, zn), Apm);
               } else {
@@ -89,21 +94,30 @@ int simulate( GlobalConstants const&  globals,
   int step = 0;
   for (time = 0.0; time < globals.endTime; time += globals.maxTimestep) {
     waveFieldWriter.writeTimestep(time, degreesOfFreedomGrid);
-  
-    double timestep = std::min(globals.maxTimestep, globals.endTime - time);
-    #pragma omp parallel for collapse(3)
-    for (int z = 0; z < globals.Z; ++z) {
-      for (int y = 0; y < globals.Y; ++y) {
-        for (int x = 0; x < globals.X; ++x) {        
-          LocalMatrices& localMatrices = localMatricesGrid.get(x, y, z);
-          DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(x, y, z);
-          DegreesOfFreedom& timeIntegrated = timeIntegratedGrid.get(x, y, z);
-          
-          computeAder(timestep, globalMatrices, localMatrices, degreesOfFreedom, timeIntegrated);
-          
-          computeVolumeIntegral(globalMatrices, localMatrices, timeIntegrated, degreesOfFreedom);
 
-          computeLocalFlux(globalMatrices, localMatrices, timeIntegrated, degreesOfFreedom);
+    double timestep = std::min(globals.maxTimestep, globals.endTime - time);
+    #pragma omp parallel
+    {
+      DegreesOfFreedom timeIntegrated __attribute((aligned(ALIGNMENT)));
+      #pragma omp parallel for collapse(3)
+      for (int z = 0; z < globals.Z; ++z) {
+        for (int y = 0; y < globals.Y; ++y) {
+          for (int x = 0; x < globals.X; ++x) {
+            LocalMatrices& localMatrices = localMatricesGrid.get(x, y, z);
+            DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(x, y, z);
+
+            computeAder(timestep, globalMatrices, localMatrices, degreesOfFreedom, timeIntegrated);
+
+            computeVolumeIntegral(globalMatrices, localMatrices, timeIntegrated, degreesOfFreedom);
+
+            real* timeIntegratedEdge[3][2];
+            for (int dim = 0; dim < 3; ++dim) {
+              for (int side = 0; side < 2; ++side) {
+                timeIntegratedEdge[dim][side] = timeIntegratedEdges[dim][side]->get(x, y, z);
+              }
+            }
+            computeLocalFlux(globalMatrices, localMatrices, timeIntegrated, timeIntegratedEdge);
+          }
         }
       }
     }
@@ -114,19 +128,20 @@ int simulate( GlobalConstants const&  globals,
         for (int x = 0; x < globals.X; ++x) {
           LocalMatrices& localMatrices = localMatricesGrid.get(x, y, z);
           DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(x, y, z);
-          
-          double* timeIntegrated[3][2];
-          for (unsigned dim = 0; dim < 3; ++dim) {
-            for (unsigned side1 = 0; side1 < 2; ++side1) {
-              int off = 2*side1-1;
+        
+          real* timeIntegratedEdge[3][2][2];
+          for (int dim = 0; dim < 3; ++dim) {
+            for (int side = 0; side < 2; ++side) {
+              int off = 2*side-1;
               int xn = x + ((dim == 0) ? off : 0);
               int yn = y + ((dim == 1) ? off : 0);
               int zn = z + ((dim == 2) ? off : 0);
-              timeIntegrated[dim][side1] = timeIntegratedGrid.get(xn, yn, zn);
+              timeIntegratedEdge[dim][side][0] = timeIntegratedEdges[dim][side]->get(x, y, z);
+              timeIntegratedEdge[dim][side][1] = timeIntegratedEdges[dim][1-side]->get(xn, yn, zn);
             }
           }
 
-          computeNeighbourFlux(globalMatrices, localMatrices, timeIntegrated, degreesOfFreedom);
+          computeNeighbourFlux(globalMatrices, localMatrices, timeIntegratedEdge, degreesOfFreedom);
         }
       }
     }
@@ -159,5 +174,11 @@ int simulate( GlobalConstants const&  globals,
   std::cout << "Performance (NZ-GFLOPS): " << totalNonZeroFlops / wallTime * 1.0e-9 << std::endl;
   std::cout << "Performance (HW-GFLOPS): " << totalHardwareFlops / wallTime * 1.0e-9 << std::endl;
   
+  for (int dim = 0; dim < 3; ++dim) {
+    for (int side = 0; side < 2; ++side) {
+      delete timeIntegratedEdges[dim][side];
+    }
+  }
+
   return step;
 }

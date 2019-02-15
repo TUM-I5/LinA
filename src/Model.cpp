@@ -6,12 +6,12 @@
 void rotateFluxSolver(  double        nx,
                         double        ny,
                         double        nz,
-                        double const  Apm[lina::tensor::Apm::size()],
-                        double        fluxSolver[lina::tensor::fluxSolver::size()],
+                        real const    Apm[lina::tensor::Apm::size()],
+                        real          fluxSolver[lina::tensor::fluxSolver::size()],
                         double        scale )
 {
-  double T[lina::tensor::T::size()] __attribute__((aligned(ALIGNMENT))) = {}; // zero initialisation
-  double TT[lina::tensor::TT::size()] __attribute__((aligned(ALIGNMENT))) = {}; // zero initialisation
+  real T[lina::tensor::T::size()] __attribute__((aligned(ALIGNMENT))) = {}; // zero initialisation
+  real TT[lina::tensor::TT::size()] __attribute__((aligned(ALIGNMENT))) = {}; // zero initialisation
   
   auto Tv = lina::init::T::view::create(T);
   auto TTv = lina::init::TT::view::create(TT);
@@ -67,7 +67,7 @@ void rotateFluxSolver(  double        nx,
 
 void computeAplus( Material const&  local,
                    Material const&  neighbour,
-                   double           Aplus[lina::tensor::Apm::size()] )
+                   real             Aplus[lina::tensor::Apm::size()] )
 {
   auto Ap = lina::init::Apm::view::create(Aplus);
   Ap.setZero();
@@ -84,7 +84,7 @@ void computeAplus( Material const&  local,
 
 void computeAminus( Material const& local,
                     Material const& neighbour,
-                    double          Aminus[lina::tensor::Apm::size()] )
+                    real            Aminus[lina::tensor::Apm::size()] )
 {  
   auto Am = lina::init::Apm::view::create(Aminus);
   Am.setZero();

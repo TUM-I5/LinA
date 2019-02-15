@@ -42,7 +42,7 @@ WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants co
     m_baseName = baseName.substr(lastFound);
     
     unsigned subGridSize = m_pointsPerDim * m_pointsPerDim * m_pointsPerDim;
-    m_subsampleMatrix = new double[subGridSize * NUMBER_OF_BASIS_FUNCTIONS];
+    m_subsampleMatrix = new real[subGridSize * NUMBER_OF_BASIS_FUNCTIONS];
     /*double subGridSpacing = 1.0 / (m_pointsPerDim + 1);
     for (int bf = 0; bf < NUMBER_OF_BASIS_FUNCTIONS; ++bf) {
       for (int y = 0; y < m_pointsPerDim; ++y) {
@@ -53,8 +53,8 @@ WaveFieldWriter::WaveFieldWriter(std::string const& baseName, GlobalConstants co
         }
       }
     }*/
-    m_subsamples = new double[subGridSize * NUMBER_OF_QUANTITIES];
-    memset(m_subsamples, 0, subGridSize * NUMBER_OF_QUANTITIES * sizeof(double));
+    m_subsamples = new real[subGridSize * NUMBER_OF_QUANTITIES];
+    memset(m_subsamples, 0, subGridSize * NUMBER_OF_QUANTITIES * sizeof(real));
   }
 }
 

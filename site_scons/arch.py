@@ -44,9 +44,16 @@ def getArchitectures():
   # knc = Knights Corner (Xeon Phi)
   # hsw = Haswell
   # knl = Knight Landing (Xeon Phi)
-  cpus = ['noarch', 'wsm', 'snb', 'knc', 'hsw', 'knl']
+  cpus = ['noarch', 'wsm', 'snb', 'knc', 'hsw', 'knl', 'skx']
   precisions = ['s', 'd']
   return [p + c for c in cpus for p in precisions]
+
+def getRealSize(architecture):
+  realSize = {
+    's': 4,
+    'd': 8
+  }
+  return realSize[ architecture[0].lower() ]
   
 def getCpu(architecture):
   return architecture[1:]
@@ -58,7 +65,8 @@ def getAlignment(architecture):
       'snb': 32,
       'hsw': 32,
       'knc': 64,
-      'knl': 64
+      'knl': 64,
+      'skx': 64
   }
   return alignments[ getCpu(architecture) ]
 
@@ -88,11 +96,18 @@ def getFlags(architecture, compiler):
       flags = ['-xMIC-AVX512', '-fma']
     else:
       flags = ['-mavx512f', '-mavx512cd', '-mavx512pf', '-mavx512er', '-mfma']
+  elif cpu == 'skx':
+    flags = ['-xCORE-AVX512', '-fma']
   else:
     flags = []
   
   # enable interproc. opts for small cores
-  if cpu in ['knc', 'knl']:
+  if cpu in ['knc', 'knl', 'skx']:
     flags.extend(['-ip'])
               
   return flags
+
+def getDefines(architecture):
+  alignment = 'ALIGNMENT={}'.format(getAlignment(architecture))
+  precision = 'REAL_SIZE={}'.format(getRealSize(architecture))
+  return [alignment, precision]

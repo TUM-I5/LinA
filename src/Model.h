@@ -5,7 +5,7 @@
 #include <generated_code/init.h>
 
 template<int Dim>
-void computeJacobian(Material const& material, double A[lina::tensor::star::size(Dim)], double scale)
+void computeJacobian(Material const& material, real A[lina::tensor::star::size(Dim)], double scale)
 {
   auto Av = lina::init::star::view<Dim>::create(A);
   Av.setZero();
@@ -18,18 +18,18 @@ void computeJacobian(Material const& material, double A[lina::tensor::star::size
 void rotateFluxSolver(  double        nx,
                         double        ny,
                         double        nz,
-                        double const  Apm[lina::tensor::Apm::size()],
-                        double        fluxSolver[lina::tensor::fluxSolver::size()],
+                        real const    Apm[lina::tensor::Apm::size()],
+                        real          fluxSolver[lina::tensor::fluxSolver::size()],
                         double        scale );
 
 /** Returns A^+ in column-major storage */
 void computeAplus( Material const&  local,
                    Material const&  neighbour,
-                   double           Aplus[lina::tensor::Apm::size()] );
+                   real             Aplus[lina::tensor::Apm::size()] );
 
 /** Returns A^- in column-major storage */
 void computeAminus( Material const& local,
                     Material const& neighbour,
-                    double          Aminus[lina::tensor::Apm::size()] );
+                    real            Aminus[lina::tensor::Apm::size()] );
 
 #endif // MODEL_H_

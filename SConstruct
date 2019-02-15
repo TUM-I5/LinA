@@ -23,6 +23,10 @@ vars.AddVariables(
                 'dnoarch',
                 allowed_values=arch.getArchitectures()
               ),
+  BoolVariable( 'unitTests', 'Build unit tests', False),
+  BoolVariable( 'libxsmm', 'Generate kernels with LIBXSMM.', True),
+  BoolVariable( 'pspamm', 'Generate kernels with PSpaMM.', True),
+  BoolVariable( 'sparse', 'Use sparse memory layout.', True)
 )
 
 # set environment
@@ -62,9 +66,16 @@ else:
 # Common settings
 #
 
+# Link to MKL
+env.Append(LIBS=['mkl_intel_lp64', 'mkl_sequential', 'mkl_core'])
+mklroot = env['ENV']['MKLROOT']
+if mklroot:
+  env.Append(LIBPATH=os.path.join(mklroot, 'lib', 'intel64'))
+  env.Append(CPPPATH=os.path.join(mklroot, 'include'))
+
 # enforce restrictive C/C++-Code
-env.Append(CFLAGS   = ['-Wall', '-Werror', '-ansi'],
-           CXXFLAGS = ['-Wall', '-Werror', '-ansi'])
+env.Append(CFLAGS   = ['-Wall', '-ansi'],
+           CXXFLAGS = ['-Wall', '-ansi'])
 
 if env['compiler'] == 'intel':
   env.Append( CFLAGS   = ['-qopenmp'],
@@ -80,7 +91,7 @@ env.Append( CFLAGS    = archFlags,
             CXXFLAGS  = archFlags,
             F90FLAGS  = archFlags,
             LINKFLAGS = archFlags )
-env.Append(CPPDEFINES=['ALIGNMENT=' + str(arch.getAlignment(env['arch']))])
+env.Append(CPPDEFINES=arch.getDefines(env['arch']))
 
 #
 # Compile mode settings
@@ -106,14 +117,23 @@ env.Append(CXXFLAGS=['--std=c++11'])
 #
 # setup the program name and the build directory
 #
-env['programName'] = 'lina_' + str(env['order'])
+generators = list()
+if env['libxsmm']:
+  generators.append('x')
+if env['pspamm']:
+  generators.append('p')
+ml = 'sp' if env['sparse'] else 'dn'
+programSuffix = '_{}_{}_{}_{}'.format(env['arch'], ''.join(generators), ml, env['order'])
+env['programName'] = 'lina' + programSuffix
 env['programFile'] = '%s/%s' %(env['buildDir'], env['programName'])
+unitTestProgramFile = os.path.join(env['buildDir'], 'unit_tests' + programSuffix)
 
 # build directory
 env['buildDir'] = '%s/build_%s' %(env['buildDir'], env['programName'])
 
 # get the source files
 env.sourceFiles = []
+env.generatedTestSourceFiles = []
 
 Export('env')
 SConscript('generated_code/SConscript', variant_dir='#/'+env['buildDir'], src_dir='#/', duplicate=0)
@@ -122,3 +142,8 @@ Import('env')
 
 # build standard version
 env.Program('#/'+env['programFile'], env.sourceFiles)
+
+if env['unitTests']: 
+  env.Tool('cxxtest')
+  sourceFiles = filter(lambda sf: os.path.basename(str(sf[0])) != 'main.o', env.sourceFiles)
+  env.CxxTest(unitTestProgramFile, list(sourceFiles) + env.generatedTestSourceFiles)

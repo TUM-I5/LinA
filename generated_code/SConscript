@@ -4,13 +4,16 @@ Import('env')
 
 def generate_code(target, source, env, for_signature):
   scriptPath = os.path.split(str(source[0]))[0]
-  return './{} --matricesDir {} --outputDir {} --arch {} --order {} --memLayout {}'.format(
+  memoryLayout = 'config.xml' if env['sparse'] else 'config_dense.xml'
+  return './{} --matricesDir {} --outputDir {} --arch {} --order {} --memLayout {} {} {}'.format(
     source[0],
     os.path.join(scriptPath, 'matrices'),
     os.path.split(str(target[0]))[0],
     env['arch'],
     env['order'],
-    os.path.join(scriptPath, 'config_dense.xml')
+    os.path.join(scriptPath, memoryLayout),
+    '--libxsmm' if env['libxsmm'] else '',
+    '--pspamm' if env['pspamm'] else ''
   )
 
 env.Append(BUILDERS = {'Generate': Builder(generator=generate_code)})

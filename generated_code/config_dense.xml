@@ -1,6 +1,2 @@
 <memory_layouts>
-  <group name="star">
-    <matrix name="star(0)"/>
-    <matrix name="star(1)"/>
-  </group>
 </memory_layouts>
