@@ -94,7 +94,7 @@ void L2error( double time,
           double Q[NUMBER_OF_QUANTITIES] = {};
           for (unsigned l = 0; l < NUMBER_OF_BASIS_FUNCTIONS; ++l) {
             for (unsigned k = 0; k < NUMBER_OF_BASIS_FUNCTIONS; ++k) {
-              double bf = (*basisFunctions[k])(xi) * (*basisFunctions[l])(eta);
+              double bf = lina::basisFunction(xi, k) * lina::basisFunction(eta, l);
               for (unsigned p = 0; p < NUMBER_OF_QUANTITIES; ++p) {
                 Q[p] += dofs(k,l,p) * bf;
               }

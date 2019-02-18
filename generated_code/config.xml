@@ -1,6 +1,4 @@
 <memory_layouts>
   <matrix name="star(0)" sparse="True"/>
   <matrix name="star(1)" sparse="True"/>
-  <matrix name="kDivMT" sparse="True"/>
-  <matrix name="kTDivMT" sparse="True"/>
 </memory_layouts>
