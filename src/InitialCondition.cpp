@@ -106,7 +106,7 @@ void L2error( double time,
               for (unsigned n = 0; n < NUMBER_OF_BASIS_FUNCTIONS; ++n) {
                 for (unsigned m = 0; m < NUMBER_OF_BASIS_FUNCTIONS; ++m) {
                   for (unsigned l = 0; l < NUMBER_OF_BASIS_FUNCTIONS; ++l) {
-                    double bf = (*basisFunctions[l])(xi) * (*basisFunctions[m])(eta) * (*basisFunctions[n])(zeta);
+                    double bf = lina::basisFunction(xi, l) * lina::basisFunction(eta, m) * lina::basisFunction(zeta, n);
                     for (unsigned p = 0; p < NUMBER_OF_QUANTITIES; ++p) {
                       Q[p] += dofs(l,m,n,p) * bf;
                     }

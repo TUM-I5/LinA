@@ -1,6 +1,6 @@
 Import('env')
 
-files = ['main.cpp', 'DGMatrices.cpp', 'Kernels.cpp', 'GEMM.cpp', 'Model.cpp', 'Simulator.cpp', 'WaveFieldWriter.cpp', 'InitialCondition.cpp']
+files = ['main.cpp', 'DGMatrices.cpp', 'Kernels.cpp', 'GEMM.cpp', 'Model.cpp', 'Simulator.cpp', 'WaveFieldWriter.cpp', 'InitialCondition.cpp', 'nodes.cpp']
 for i in files:
   env.sourceFiles.append(env.Object(i))
 
