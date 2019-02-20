@@ -6,7 +6,7 @@
 #include "WaveFieldWriter.h"
 #include "DGMatrices.h"
 
-double determineTimestep(double hx, double hy, double hz, Grid<Material>& materialGrid);
+double determineTimestep(double hx, double hy, double hz, double cfl, Grid<Material>& materialGrid);
 
 int simulate( GlobalConstants const&  globals,
               GlobalMatrices const&   globalMatrices,

@@ -4,6 +4,17 @@
 #include "generated_code/init.h"
 #include "generated_code/kernel.h"
 
+void planeWave(Material const& material, double t, double xp, double yp, double zp, double f[NUMBER_OF_QUANTITIES]) {
+  double k = 10.0 * M_PI;
+  double omega = sqrt(3.) * k * material.wavespeed();
+  double sn = sin(omega*t - k*xp - k*yp - k*zp);
+  double scaledWavespeed = sqrt(3.) * material.wavespeed() / 3.;
+  f[0] = material.K0*sn;
+  f[1] = scaledWavespeed*sn;
+  f[2] = scaledWavespeed*sn;
+  f[3] = scaledWavespeed*sn;
+}
+
 void initialCondition(  GlobalConstants const& globals,
                         GlobalMatrices const& globalMatrices,
                         Grid<Material>& materialGrid,
@@ -19,6 +30,7 @@ void initialCondition(  GlobalConstants const& globals,
 {
   real icBuffer[lina::tensor::initialCond::Size] __attribute__((aligned(ALIGNMENT))) = {};
   auto ic = lina::init::initialCond::view::create(icBuffer);
+  double f[NUMBER_OF_QUANTITIES];
 
   lina::kernel::quadrature krnl;
   krnl.initialCond = icBuffer;
@@ -31,8 +43,6 @@ void initialCondition(  GlobalConstants const& globals,
         DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(x, y, z);
         Material& material = materialGrid.get(x, y, z);
         
-        double scaledWavespeed = sqrt(3.) * material.wavespeed() / 3.;
-        
         for (int i = 0; i < npoints; ++i) {
           double xi = (points[i]+1.)/2.;
           for (unsigned j = 0; j < npoints; ++j) {
@@ -43,11 +53,12 @@ void initialCondition(  GlobalConstants const& globals,
               double xp = xi*globals.hx + x*globals.hx;
               double yp = eta*globals.hy + y*globals.hy;
               double zp = zeta*globals.hz + z*globals.hz;
-              double sn = sin(-2.*M_PI*xp - 2.*M_PI*yp - 2.*M_PI*zp);
-              ic(i,j,k,0) = material.K0*sn;
-              ic(i,j,k,1) = scaledWavespeed*sn;
-              ic(i,j,k,2) = scaledWavespeed*sn;
-              ic(i,j,k,3) = scaledWavespeed*sn;
+
+              planeWave(material, 0.0, xp, yp, zp, f);
+
+              for (int p = 0; p < NUMBER_OF_QUANTITIES; ++p) {
+                ic(i,j,k,p) = f[p];
+              }
             }
           }
         }
@@ -84,9 +95,6 @@ void L2error( double time,
         Material& material = materialGrid.get(x, y, z);
         
         auto dofs = lina::init::Q::view::create(degreesOfFreedom);
-
-        double scaledWavespeed = sqrt(3.) * material.wavespeed() / 3.;
-        double omega = 2.* sqrt(3.) * M_PI * material.wavespeed();
         
         for (int i = 0; i < npoints; ++i) {
           double xi = (points[i]+1.)/2.;
@@ -99,8 +107,9 @@ void L2error( double time,
               double xp = xi*globals.hx + x*globals.hx;
               double yp = eta*globals.hy + y*globals.hy;
               double zp = zeta*globals.hz + z*globals.hz;
-              double sn = sin(omega*time-2.*M_PI*xp - 2.*M_PI*yp - 2.*M_PI*zp);
-              double f[] = {material.K0*sn, scaledWavespeed*sn, scaledWavespeed*sn, scaledWavespeed*sn};
+
+              double f[NUMBER_OF_QUANTITIES];
+              planeWave(material, time, xp, yp, zp, f);
 
               double Q[NUMBER_OF_QUANTITIES] = {};
               for (unsigned n = 0; n < NUMBER_OF_BASIS_FUNCTIONS; ++n) {
