@@ -4,6 +4,16 @@
 #include "generated_code/init.h"
 #include "generated_code/kernel.h"
 
+void planeWave(Material const& material, double t, double xp, double yp, double f[NUMBER_OF_QUANTITIES]) {
+  double k = 10.0 * M_PI;
+  double omega = sqrt(2.) * k * material.wavespeed();
+  double sn = sin(omega*t - k*xp - k*yp);
+  double scaledWavespeed = sqrt(2.) * material.wavespeed() / 2.;
+  f[0] = material.K0*sn;
+  f[1] = scaledWavespeed*sn;
+  f[2] = scaledWavespeed*sn;
+}
+
 void initialCondition(  GlobalConstants const& globals,
                         GlobalMatrices const& globalMatrices,
                         Grid<Material>& materialGrid,
@@ -19,6 +29,7 @@ void initialCondition(  GlobalConstants const& globals,
 {
   real icBuffer[lina::tensor::initialCond::Size] __attribute__((aligned(ALIGNMENT))) = {};
   auto ic = lina::init::initialCond::view::create(icBuffer);
+  double f[NUMBER_OF_QUANTITIES];
 
   lina::kernel::quadrature krnl;
   krnl.initialCond = icBuffer;
@@ -39,10 +50,12 @@ void initialCondition(  GlobalConstants const& globals,
 
           double xp = xi*globals.hx + x*globals.hx;
           double yp = eta*globals.hy + y*globals.hy;
-          double sn = sin(-2.*M_PI*xp - 2.*M_PI*yp);
-          ic(i,j,0) = material.K0*sn;
-          ic(i,j,1) = scaledWavespeed*sn;
-          ic(i,j,2) = scaledWavespeed*sn;
+
+          planeWave(material, 0.0, xp, yp, f);
+
+          for (int p = 0; p < NUMBER_OF_QUANTITIES; ++p) {
+            ic(i,j,p) = f[p];
+          }
         }
       }
       
@@ -76,9 +89,6 @@ void L2error( double time,
       Material& material = materialGrid.get(x, y);
       
       auto dofs = lina::init::Q::view::create(degreesOfFreedom);
-
-      double scaledWavespeed = sqrt(2.) * material.wavespeed() / 2.;
-      double omega = 2.*sqrt(2.) * M_PI * material.wavespeed();
       
       for (int i = 0; i < npoints; ++i) {
         double xi = (points[i]+1.)/2.;
@@ -88,8 +98,9 @@ void L2error( double time,
 
           double xp = xi*globals.hx + x*globals.hx;
           double yp = eta*globals.hy + y*globals.hy;
-          double sn = sin(omega*time-2.*M_PI*xp - 2.*M_PI*yp);
-          double f[] = {material.K0*sn, scaledWavespeed*sn, scaledWavespeed*sn};
+
+          double f[NUMBER_OF_QUANTITIES];
+          planeWave(material, time, xp, yp, f);
 
           double Q[NUMBER_OF_QUANTITIES] = {};
           for (unsigned l = 0; l < NUMBER_OF_BASIS_FUNCTIONS; ++l) {

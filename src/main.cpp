@@ -104,7 +104,7 @@ void initScenario3(GlobalConstants& globals, GlobalMatrices const& globalMatrice
 int main(int argc, char** argv)
 {
   int scenario;
-  double wfwInterval;
+  double wfwInterval, cfl;
   std::string wfwBasename;
   GlobalConstants globals;
   
@@ -116,12 +116,14 @@ int main(int argc, char** argv)
     TCLAP::ValueArg<std::string> basenameArg("o", "output", "Basename of wavefield writer output. Leave empty for no output.", false, "", "string");
     TCLAP::ValueArg<double> intervalArg("i", "interval", "Time interval of wavefield writer.", false, 0.1, "double");
     TCLAP::ValueArg<double> timeArg("t", "end-time", "Final simulation time.", false, 0.5, "double");
+    TCLAP::ValueArg<double> cflArg("c", "cfl", "Adjust CFL number.", false, 1.0, "double");
     cmd.add(scenarioArg);
     cmd.add(XArg);
     cmd.add(YArg);
     cmd.add(basenameArg);
     cmd.add(intervalArg);
     cmd.add(timeArg);
+    cmd.add(cflArg);
     
     cmd.parse(argc, argv);
     
@@ -131,6 +133,7 @@ int main(int argc, char** argv)
     wfwBasename = basenameArg.getValue();
     wfwInterval = intervalArg.getValue();
     globals.endTime = timeArg.getValue();
+    cfl = cflArg.getValue();
     
     if (scenario < 0 || scenario > 3) {
       std::cerr << "Unknown scenario." << std::endl;
@@ -171,7 +174,7 @@ int main(int argc, char** argv)
       break;
   }
   
-  globals.maxTimestep = determineTimestep(globals.hx, globals.hy, materialGrid);
+  globals.maxTimestep = determineTimestep(globals.hx, globals.hy, cfl, materialGrid);
   
   WaveFieldWriter waveFieldWriter(wfwBasename, globals, wfwInterval, static_cast<int>(ceil( sqrt(NUMBER_OF_BASIS_FUNCTIONS) )));
 

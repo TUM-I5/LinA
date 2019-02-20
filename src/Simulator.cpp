@@ -9,7 +9,7 @@
 #include "Model.h"
 #include "Stopwatch.h"
 
-double determineTimestep(double hx, double hy, Grid<Material>& materialGrid)
+double determineTimestep(double hx, double hy, double cfl, Grid<Material>& materialGrid)
 {
   double maxWaveSpeed = 0.0;
   for (int y = 0; y < materialGrid.Y(); ++y) {
@@ -17,11 +17,15 @@ double determineTimestep(double hx, double hy, Grid<Material>& materialGrid)
       maxWaveSpeed = std::max(maxWaveSpeed, materialGrid.get(x, y).wavespeed());
     }
   }
-  
-  double PNPM[10]  = {1.0, 0.33, 0.17, 0.1, 0.069, 0.045, 0.038, 0.03, 0.02, 0.015};
-  double factor = (CONVERGENCE_ORDER < 10) ? PNPM[CONVERGENCE_ORDER] : 0.25/(2*CONVERGENCE_ORDER-1);
 
-  return factor * hx * hy / (maxWaveSpeed * (hx + hy));
+  double PNPM[10]  = {1.0, 0.33, 0.17, 0.1, 0.069, 0.045, 0.038, 0.03, 0.02, 0.015};
+  double factor = (CONVERGENCE_ORDER < 10) ? PNPM[CONVERGENCE_ORDER] : 1.0/(2*CONVERGENCE_ORDER-1);
+
+  if (CONVERGENCE_ORDER >= 10 && cfl == 1.0) {
+    std::cerr << "Warning: Stability factor unknown for order " << CONVERGENCE_ORDER << ". Defaulting to guess 1/(2N+1). Please adjust the CFL number with option -c." << std::endl;
+  }
+
+  return cfl * factor * hx * hy / (maxWaveSpeed * (hx + hy));
 }
 
 int simulate( GlobalConstants const&  globals,
