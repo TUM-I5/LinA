@@ -51,7 +51,7 @@ double sourceFunctionAntiderivative(double time)
   return sin(time);
 }
 
-void initSourceTerm23(GlobalConstants& globals, SourceTerm& sourceterm)
+void initSourceTerm23(GlobalConstants& globals, GlobalMatrices const& globalMatrices, SourceTerm& sourceterm)
 {
   sourceterm.quantity = 0; // pressure source
   double xs = 0.5;
@@ -61,7 +61,7 @@ void initSourceTerm23(GlobalConstants& globals, SourceTerm& sourceterm)
   double xi = (xs - sourceterm.x*globals.hx) / globals.hx;
   double eta = (ys - sourceterm.y*globals.hy) / globals.hy;
   
-  initSourcetermPhi(xi, eta, sourceterm);
+  initSourcetermPhi(globalMatrices, xi, eta, sourceterm);
   
   sourceterm.antiderivative = sourceFunctionAntiderivative;  
 }
@@ -76,7 +76,7 @@ void initScenario2(GlobalConstants& globals, GlobalMatrices const& globalMatrice
     }
   }
   
-  initSourceTerm23(globals, sourceterm);
+  initSourceTerm23(globals, globalMatrices, sourceterm);
 }
 
 void initScenario3(GlobalConstants& globals, GlobalMatrices const& globalMatrices, Grid<Material>& materialGrid, Grid<DegreesOfFreedom>& degreesOfFreedomGrid, SourceTerm& sourceterm)
@@ -98,7 +98,7 @@ void initScenario3(GlobalConstants& globals, GlobalMatrices const& globalMatrice
     }
   }
   
-  initSourceTerm23(globals, sourceterm);
+  initSourceTerm23(globals, globalMatrices, sourceterm);
 }
 
 int main(int argc, char** argv)
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
   
   globals.maxTimestep = determineTimestep(globals.hx, globals.hy, cfl, materialGrid);
   
-  WaveFieldWriter waveFieldWriter(wfwBasename, globals, wfwInterval, static_cast<int>(ceil( sqrt(NUMBER_OF_BASIS_FUNCTIONS) )));
+  WaveFieldWriter waveFieldWriter(wfwBasename, globals, wfwInterval);
 
   int steps = simulate(globals, globalMatrices, materialGrid, degreesOfFreedomGrid, waveFieldWriter, sourceterm);
   

@@ -13,6 +13,7 @@ public:
   lina::tensor::FDivM::Container<real const*> FDivM;
   lina::tensor::F::Container<real const*> F;
   real* quadrature;
+  real* mInv;
   
   GlobalMatrices();
   ~GlobalMatrices();

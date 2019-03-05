@@ -36,7 +36,7 @@ struct SourceTerm {
   SourceTerm() : x(-1), y(-1) {} // -1 == invalid
   int x;
   int y;
-  real phi[NUMBER_OF_BASIS_FUNCTIONS];
+  real phiDivM[2][lina::tensor::phiDivM::size(0)]  __attribute__((aligned(ALIGNMENT)));
   double (*antiderivative)(double);
   int quantity;
 };

@@ -8,6 +8,7 @@
 #include "Kernels.h"
 #include "Model.h"
 #include "Stopwatch.h"
+#include "generated_code/kernel.h" 
 
 double determineTimestep(double hx, double hy, double cfl, Grid<Material>& materialGrid)
 {
@@ -135,14 +136,19 @@ int simulate( GlobalConstants const&  globals,
       }
     }
     
-    /*if (sourceterm.x >= 0 && sourceterm.x < globals.X && sourceterm.y >= 0 && sourceterm.y < globals.Y) {
+    if (sourceterm.x >= 0 && sourceterm.x < globals.X && sourceterm.y >= 0 && sourceterm.y < globals.Y) {
       double areaInv = 1. / (globals.hx*globals.hy);
       DegreesOfFreedom& degreesOfFreedom = degreesOfFreedomGrid.get(sourceterm.x, sourceterm.y);
       double timeIntegral = (*sourceterm.antiderivative)(time + timestep) - (*sourceterm.antiderivative)(time);
-      for (unsigned b = 0; b < NUMBER_OF_BASIS_FUNCTIONS; ++b) {
-        degreesOfFreedom[sourceterm.quantity * NUMBER_OF_BASIS_FUNCTIONS + b] += areaInv * timeIntegral * sourceterm.phi[b];
-      }
-    }*/
+      real source[NUMBER_OF_QUANTITIES] __attribute__((aligned(ALIGNMENT))) = {};
+      source[sourceterm.quantity] = areaInv * timeIntegral;
+      lina::kernel::applySource krnl;
+      krnl.phi(0) = sourceterm.phiDivM[0];
+      krnl.phi(1) = sourceterm.phiDivM[1];
+      krnl.source = source;
+      krnl.Q = degreesOfFreedom;
+      krnl.execute();
+    }
     
     ++step;
     if (step % 100 == 0) {

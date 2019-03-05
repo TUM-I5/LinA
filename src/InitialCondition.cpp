@@ -125,8 +125,20 @@ void L2error( double time,
 }
 
 
-void initSourcetermPhi(double xi, double eta, SourceTerm& sourceterm) {
-  /*for (unsigned k = 0; k < NUMBER_OF_BASIS_FUNCTIONS; ++k) {
-    sourceterm.phi[k] = basisFunctions[k](xi, eta) * GlobalMatrices::Minv[k*NUMBER_OF_BASIS_FUNCTIONS + k];
-  }*/
+void initSourcetermPhi(GlobalMatrices const& globalMatrices, double xi, double eta, SourceTerm& sourceterm) {
+  real phi[lina::tensor::phi::size(0)] __attribute__((aligned(ALIGNMENT))) = {};
+  lina::kernel::computePhiDivM krnl;
+  krnl.mInv = globalMatrices.mInv;
+  krnl.phi(0) = phi;
+  krnl.phi(1) = phi;
+
+  double coord[] = {xi, eta};
+
+  for (unsigned d = 0; d < 2; ++d) {
+    for (unsigned k = 0; k < NUMBER_OF_BASIS_FUNCTIONS; ++k) {
+      phi[k] = lina::basisFunction(coord[d], k);
+    }
+    krnl.phiDivM(d) = sourceterm.phiDivM[d];
+    krnl.execute(d);
+  }
 }

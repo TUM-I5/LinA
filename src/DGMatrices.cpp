@@ -13,6 +13,7 @@ GlobalMatrices::GlobalMatrices() {
   globalMatrixMemSize += yateto::computeFamilySize<lina::init::FDivM>(alignedReals);
   globalMatrixMemSize += yateto::computeFamilySize<lina::init::F>(alignedReals);
   globalMatrixMemSize += yateto::alignedUpper(lina::init::quadrature::size(), alignedReals);
+  globalMatrixMemSize += yateto::alignedUpper(lina::init::mInv::size(), alignedReals);
 
   int err = posix_memalign(reinterpret_cast<void**>(&m_matrixMem), ALIGNMENT, globalMatrixMemSize * sizeof(real));
   if (err) {
@@ -28,6 +29,7 @@ GlobalMatrices::GlobalMatrices() {
   yateto::copyFamilyToMemAndSetPtr<lina::init::FDivM,   real>(mem, FDivM, ALIGNMENT);
   yateto::copyFamilyToMemAndSetPtr<lina::init::F,       real>(mem, F, ALIGNMENT);
   yateto::copyTensorToMemAndSetPtr<lina::init::quadrature,   real>(mem, quadrature, ALIGNMENT);
+  yateto::copyTensorToMemAndSetPtr<lina::init::mInv,    real>(mem, mInv, ALIGNMENT);
 
   for (unsigned i = 0; i < lina::init::kTDivM::size(); ++i) {
     kTDivM[i] *= -1.0;

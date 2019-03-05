@@ -41,6 +41,9 @@ Q1 = Tensor('Q1', qShape1)
 Q1Neighbour = Tensor('Q1Neighbour', qShape1)
 dQ0 = Tensor('dQ(0)', qShape)
 I = Tensor('I', qShape)
+phi = [Tensor('phi({})'.format(i), (numberOf1DBasisFunctions,)) for i in range(2)]
+phiDivM = [Tensor('phiDivM({})'.format(i), (numberOf1DBasisFunctions,)) for i in range(2)]
+source = Tensor('source', (numberOfQuantities,))
 
 initialCond = Tensor('initialCond', (numberOfQuadraturePoints, numberOfQuadraturePoints, numberOfQuantities))
 
@@ -79,7 +82,6 @@ g.add('derivativeTaylorExpansion(0)', I['xyp'] <= power * Q['xyp'])
 g.add('derivativeTaylorExpansion(1)', I['xyp'] <= I['xyp'] + power * dQnext['xyp'])
 
 
-
 ## Initialization kernels
 fluxScale = Scalar('fluxScale')
 computeFluxSolver = fluxSolver['ij'] <= fluxScale * T['ik'] * Apm['kl'] * TT['lj']
@@ -87,6 +89,14 @@ g.add('computeFluxSolver', computeFluxSolver)
 
 quadrature = Q['xyp'] <= db.quadrature['xl'] * db.quadrature['ym'] * initialCond['lmp']
 g.add('quadrature', quadrature)
+
+
+## Source term
+computePhiDivM = lambda d: phiDivM[d]['i'] <= db.mInv['ij'] * phi[d]['j']
+g.addFamily('computePhiDivM', simpleParameterSpace(2), computePhiDivM)
+
+applySource = Q['ijp'] <= Q['ijp'] + source['p'] * phi[0]['i'] * phi[1]['j']
+g.add('applySource', applySource)
 
 class MyPSpaMM(PSpaMM):
   def preference(self, m, n, k, sparseA, sparseB, transA, transB, alpha, beta):

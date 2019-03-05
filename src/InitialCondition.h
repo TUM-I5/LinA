@@ -16,6 +16,6 @@ void L2error( double time,
               Grid<DegreesOfFreedom>& degreesOfFreedomGrid,
               double l2error[NUMBER_OF_QUANTITIES]  );
 
-void initSourcetermPhi(double xi, double eta, SourceTerm& sourceterm);
+void initSourcetermPhi(GlobalMatrices const& globalMatrices, double xi, double eta, SourceTerm& sourceterm);
 
 #endif // INITIALCONDITION_H_
